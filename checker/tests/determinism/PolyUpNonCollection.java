@@ -18,4 +18,15 @@ public class PolyUpNonCollection {
         int x = lst.get(0);
         nonCollection1(x, arg);
     }
+
+    static void collectionMethod2(@PolyDet ClassWithListField c) {
+        for (@PolyDet("up") String elt : c.list) {
+            @PolyDet String s = elt;
+        }
+    }
+
+    @HasQualifierParameter(NonDet.class)
+    public static class ClassWithListField {
+        @PolyDet List<@PolyDet String> list;
+    }
 }
