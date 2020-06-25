@@ -1,6 +1,5 @@
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.checkerframework.checker.sql.qual.*;
 
 public class StringConstants {
     public static final String SQL_CONSTANT = "";

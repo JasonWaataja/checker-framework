@@ -1,7 +1,6 @@
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.checkerframework.checker.sql.qual.*;
 
 public class Jdbc {
     Statement statement;
