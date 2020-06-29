@@ -1,0 +1,156 @@
+\htmlhr
+\chapterAndLabel{SQL Checker}{sql-checker}
+
+The SQL Checker prevents SQL injection vulnerabilities. A SQL injection attack
+occurs when user controlled input is included in SQL code executed on a
+database. SQL injection vulnerabilities may allow an attacker to learn
+information in the database or execute code with disastrous consequences, such
+as deleting a table. Despite mechanisms existing to prevent these
+vulnerabilities, incorrect usage or failure to use them can still easily
+introduce SQL injection bugs. The SQL Checker guarantees that an attacker can
+never execute malicious SQL on a database.
+
+Suppose we write a method that returns the data on a user.
+\begin{Verbatim}
+import java.sql.*;
+
+class Query {
+  Statement statement;
+
+  public ResultSet getUserInfo(String username) throws SQLException {
+    String query = "SELECT * FROM users WHERE username = '" + username + "'";
+    return statement.executeQuery(query);
+  }
+}
+\end{Verbatim}
+If an attacker can control the value of \<username>, then they could set it to
+\begin{Verbatim}
+' OR '1'='1
+\end{Verbatim}
+This would result in
+\begin{Verbatim}
+SELECT * FROM users WHERE username = '' OR '1'='1'
+\end{Verbatim}
+being executed on the database. Since \code{'1'='1'} always holds, this would
+return information on every user in the table. Even worse, if the attacker can
+execute the code \code{DROP TABLE users}, then the integrity of the database
+would be at risk.
+
+The way to prevent SQL injections is with \<java.sql.PreparedStatement>. We
+would instead write,
+\begin{Verbatim}
+import java.sql.*;
+
+class Query {
+  Connection conn;
+
+  public ResultSet getUserInfo(String username) throws SQLException {
+    PreparedStatement statement =
+        conn.prepareStatement("SELECT * FROM users WHERE username = '?'");
+    statement.setString(1, username);
+    return statement.executeQuery();
+  }
+}
+\end{Verbatim}
+However, if the call to \<conn.prepareStatement> contains injected code, the
+vulnerability can still occur.
+
+If the SQL Checker issues no warnings for a given program, then no user
+controlled value is ever executed on a SQL database. This only applies to the
+Java Database Connectivity (JDBC) API\@. The SQL Checker may be used with other
+SQL libraries, but the database library must be correctly annotated, see
+Section~\ref{annotating-libraries}. The SQL Checker does not guarantee that only
+syntactically valid SQL will be executed. It is still the responsibility of the
+programmer to write correct SQL code.
+
+To run the SQL Checker, supply the
+\code{-processor SqlChecker}
+command-line option to javac.
+
+
+\sectionAndLabel{SQL Annotations}{sql-annotations}
+
+The SQL type system uses the following annotations:
+\begin{itemize}
+\item
+  \refqualclass{checker/sql/qual}{MaybeDangerousSql} indicates a type that may
+  contain user controlled (i.e.\ untrusted) values. It is the default qualifier
+  and cannot be executed on a SQL database.
+\item
+  \refqualclass{checker/sql/qual}{NotDangerousSql} indicates a type that
+  definitely does not contain user controlled values and is safe to execute on
+  a database. It is the default qualifier for String literals.
+\item
+  \refqualclass{checker/sql/qual}{PolySql} is a qualifier that is
+  polymorphic over SQL (see Section~\ref{qualifier-polymorphism}).
+\end{itemize}
+
+The subtyping hierarchy of the SQL Checker's qualifiers is shown in
+Figure~\ref{fig-sql-hierarchy}.
+
+\begin{figure}
+\includeimage{sql-subtyping}{3.5cm}
+\caption{The subtyping relationship of the SQL Checker's qualifiers.}
+\label{fig-sql-hierarchy}
+\end{figure}
+
+
+\sectionAndLabel{Examples}{sql-checker-examples}
+
+The default qualifier for the SQL type system is \<@MaybeDangerousSql>. This
+means executing most values will result in an error, like in the following
+example.
+\begin{Verbatim}
+  Statement statement;
+
+  public void executeQuery(String query) throws SQLException {
+      // error: executing dangerous SQL
+      statement.execute(query);
+  }
+\end{Verbatim}
+
+Since String constants are known at compile time, they are safe and by default
+have type \<@NotDangerousSql>. The following code that finds users with empty
+names is correct and the SQL Checker issues no warnings.
+\begin{Verbatim}
+  Statement statement;
+
+  public ResultSet findEmptyNames() throws SQLException {
+    return statement.executeQuery("SELECT * FROM users WHERE username = ''");
+  }
+\end{Verbatim}
+
+Even though \<PreparedStatement> is meant to mitigate SQL injection attacks, it
+is still invalid to create a \<PreparedStatement> using a possibly dangerous
+String. Consider the following code, which finds users with a given name that
+have some minimum amount of money. It contains a SQL injection vulnerability and
+the SQL checker correctly issues an error.
+\begin{Verbatim}
+  Connection conn;
+
+  public ResultSet findUsersWithBalance(String username, int minBalance)
+      throws SQLException {
+    String query = "SELECT * FROM users WHERE username = '" + username + "'";
+    query += " AND balance >= ?";
+    PreparedStatement statement = conn.prepareStatement(query);
+    statement.setInt(1, minBalance);
+    // error: executing dangerous SQL
+    return statement.executeQuery();
+  }
+\end{Verbatim}
+The problem is that even though \<minBalance> is correctly inserted using
+\<setInt>, the unsafe parameter \<username> is still inserted directly into the
+query, which is a vulnerability. The correct version of this code is the
+following.
+\begin{Verbatim}
+  public ResultSet findUsersWithBalance(String username, int minBalance)
+      throws SQLException {
+    String query = "SELECT * FROM users WHERE username = '?'";
+    query += " AND balance >= ?";
+    PreparedStatement statement = conn.prepareStatement(query);
+    statement.setString(1, username);
+    statement.setInt(2, minBalance);
+    return statement.executeQuery();
+  }
+\end{Verbatim}
+In this case the SQL Checker issues no errors.
