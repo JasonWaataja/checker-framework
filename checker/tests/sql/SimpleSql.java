@@ -1,8 +1,8 @@
-import org.checkerframework.checker.sql.qual.Sql;
+import org.checkerframework.checker.sql.qual.NotDangerousSql;
 
 class SimpleSql {
 
-    void execute(@Sql String s) {}
+    void execute(@NotDangerousSql String s) {}
 
     void unsafe(String s) {}
 
@@ -17,12 +17,12 @@ class SimpleSql {
         unsafe(ref);
     }
 
-    void ununsafeRef(@Sql String ref) {
+    void ununsafeRef(@NotDangerousSql String ref) {
         execute(ref);
         unsafe(ref);
     }
 
-    void concatenation(@Sql String s1, String s2) {
+    void concatenation(@NotDangerousSql String s1, String s2) {
         execute(s1 + s1);
         execute(s1 += s1);
         execute(s1 + "m");

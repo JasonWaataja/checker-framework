@@ -12,14 +12,16 @@ import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 /**
- * Denotes a reference that represents safe and valid SQL, i.e. can be trusted.
+ * Denotes a reference guaranteed to be absent of dangerous SQL. A value with this type is not user
+ * controlled and when executed on a SQL database will not lead to a SQL injection attack, i.e.
+ * represents trusted data.
  *
  * @checker_framework.manual #sql-checker SQL Checker
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf(MaybeNotSql.class)
+@SubtypeOf(MaybeDangerousSql.class)
 @QualifierForLiterals(LiteralKind.STRING)
 @DefaultFor(TypeUseLocation.LOWER_BOUND)
-public @interface Sql {}
+public @interface NotDangerousSql {}
