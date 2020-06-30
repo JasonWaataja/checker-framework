@@ -14,10 +14,10 @@ import org.checkerframework.framework.qual.SubtypeOf;
  * type should not executed on a SQL database.
  *
  * <p>This is the top qualifier of the SQL type system. This annotation is associated with the
- * {@link org.checkerframework.checker.tainting.SqlChecker}.
+ * {@link org.checkerframework.checker.sql.SqlChecker}.
  *
  * @see NotDangerousSql
- * @see org.checkerframework.checker.tainting.SqlChecker
+ * @see org.checkerframework.checker.sql.SqlChecker
  * @checker_framework.manual #sql-checker SQL Checker
  */
 @Documented
