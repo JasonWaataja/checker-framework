@@ -1,14 +1,13 @@
 package org.checkerframework.framework.qual;
 
-import java.lang.annotation.Annotation;
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
- * This is a declaration annotation that applies to type declarations. It means that the class
- * conceptually takes a type qualifier parameter, though there is nowhere to write it because the
- * class hard-codes a Java basetype rather than taking a type parameter.
+ * This is a declaration annotation that applies to type declarations and packages. On a type, it
+ * means that the class conceptually takes a type qualifier parameter, though there is nowhere to
+ * write it because the class hard-codes a Java basetype rather than taking a type parameter.
+ * Writing {@code HasQualifierParameter} on a package is the same as writing it on each class in
+ * that package.
  *
  * <p>Writing {@code @HasQualifierParameter} on a type declaration has two effects.
  *
@@ -49,13 +48,26 @@ import java.lang.annotation.Target;
  *                              |
  *                    {@code @Untainted} MyStringBuffer
  * </pre>
+ *
+ * <p>This annotation may not be written on the same class as {@code NoQualifierParameter} for the
+ * same hierarchy.
+ *
+ * <p>When {@code @HasQualifierParameter} is written on a package, it is equivalent to writing it on
+ * each class in that package with the same arguments, including classes in sub-packages. It can be
+ * disabled on a specific class by writing {@code @NoQualifierParameter} on that class.
+ *
+ * @see NoQualifierParameter
  */
-@Target(ElementType.TYPE)
 @Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.PACKAGE})
+@Inherited
 public @interface HasQualifierParameter {
 
     /**
      * Class of the top qualifier for the hierarchy for which this class has a qualifier parameter.
+     *
+     * @return the value
      */
     Class<? extends Annotation>[] value();
 }

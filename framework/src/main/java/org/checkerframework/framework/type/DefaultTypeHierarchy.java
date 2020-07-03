@@ -375,6 +375,11 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             AnnotatedTypeMirror outsideLowerBound,
             boolean canBeCovariant) {
 
+        if (inside.equals(outside)) {
+            // If they are equal, outside always contains inside.
+            return true;
+        }
+
         if (inside.getKind() == TypeKind.WILDCARD) {
             outsideUpperBound =
                     checker.getTypeFactory()
@@ -466,12 +471,18 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitDeclared_Declared(
             AnnotatedDeclaredType subtype, AnnotatedDeclaredType supertype, Void p) {
-        AnnotatedDeclaredType subtypeAsSuper =
-                AnnotatedTypes.castedAsSuper(subtype.atypeFactory, subtype, supertype);
-
-        if (!isPrimarySubtype(subtypeAsSuper, supertype)) {
+        if (!isPrimarySubtype(subtype, supertype)) {
             return false;
         }
+        if (subtype.atypeFactory.ignoreUninferredTypeArguments
+                && (subtype.containsUninferredTypeArguments()
+                        || supertype.containsUninferredTypeArguments())) {
+            // Calling castedAsSuper may cause the uninferredTypeArguments to be lost. So, just
+            // return true here.
+            return true;
+        }
+        AnnotatedDeclaredType subtypeAsSuper =
+                AnnotatedTypes.castedAsSuper(subtype.atypeFactory, subtype, supertype);
 
         if (visitHistory.contains(subtypeAsSuper, supertype, currentTop)) {
             return true;
@@ -647,6 +658,21 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitIntersection_Typevar(
             AnnotatedIntersectionType subtype, AnnotatedTypeVariable supertype, Void p) {
+        // this can occur through capture conversion/comparing bounds
+        Types types = checker.getTypeUtils();
+        for (AnnotatedDeclaredType subtypeI : subtype.directSuperTypes()) {
+            if (TypesUtils.isErasedSubtype(
+                            subtypeI.getUnderlyingType(), supertype.getUnderlyingType(), types)
+                    && isSubtype(subtypeI, supertype, currentTop)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Boolean visitIntersection_Wildcard(
+            AnnotatedIntersectionType subtype, AnnotatedWildcardType supertype, Void p) {
         // this can occur through capture conversion/comparing bounds
         Types types = checker.getTypeUtils();
         for (AnnotatedDeclaredType subtypeI : subtype.directSuperTypes()) {
