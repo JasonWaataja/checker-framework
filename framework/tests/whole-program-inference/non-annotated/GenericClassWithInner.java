@@ -1,4 +1,6 @@
-import testlib.wholeprograminference.qual.*;
+// test file for https://github.com/typetools/checker-framework/issues/3438
+
+import testlib.wholeprograminference.qual.Top;
 
 public class GenericClassWithInner<T> {
     public class InnerClass {
