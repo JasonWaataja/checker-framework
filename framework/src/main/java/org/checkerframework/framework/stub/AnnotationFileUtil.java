@@ -370,7 +370,8 @@ public class AnnotationFileUtil {
      *
      * @param location an annotation file (a stub file or ajava file), a jarfile, or a directory. If
      *     a stub file or ajava file, add it to the {@code resources} list. If a jarfile, use all
-     *     stub files contained in it. If a directory, recurse on all files contained in it.
+     *     annotation files (of type {@code fileType}) contained in it. If a directory, recurse on
+     *     all files contained in it.
      * @param resources the list to add the found files to
      * @param fileType type of annotation files to add
      */
