@@ -581,6 +581,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             case LOCAL_VARIABLE:
                 className = getEnclosingClassName((LocalVariableNode) elt);
                 break;
+            case FIELD:
+                ClassSymbol enclosingClass = ((VarSymbol) elt).enclClass();
+                className = enclosingClass.flatname.toString();
+                break;
             default:
                 throw new BugInCF("What element? %s %s", elt.getKind(), elt);
         }
