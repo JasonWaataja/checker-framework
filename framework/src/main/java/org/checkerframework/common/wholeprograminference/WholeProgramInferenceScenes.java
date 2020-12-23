@@ -128,7 +128,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(constructorElt);
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(constructorElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) constructorElt).enclClass());
         AMethod constructorAnnos =
@@ -148,7 +148,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
@@ -207,7 +207,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
@@ -247,7 +247,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         String className = getEnclosingClassName(lhs);
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(methodElt);
         AClass classAnnos =
                 storage.getAClass(
                         className, file, (ClassSymbol) TreeUtils.elementFromDeclaration(classTree));
@@ -318,7 +318,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(element);
         AClass classAnnos = storage.getAClass(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
@@ -406,7 +406,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = classSymbol.flatname.toString();
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(methodElt);
         AClass classAnnos = storage.getAClass(className, file, classSymbol);
 
         AMethod methodAnnos =
@@ -485,7 +485,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = storage.getJaifPath(className);
+        String file = getFileForElement(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
@@ -564,6 +564,29 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     ///
     /// Writing to a file
     ///
+
+    /**
+     * Returns the file corresponding to the given element.
+     *
+     * @param elt an element
+     * @return the path to the file where inference results for the element will be written
+     */
+    private String getFileForElement(Element elt) {
+        String className;
+        switch (elt.getKind()) {
+            case CONSTRUCTOR:
+            case METHOD:
+                className = getEnclosingClassName((ExecutableElement) elt);
+                break;
+            case LOCAL_VARIABLE:
+                className = getEnclosingClassName((LocalVariableNode) elt);
+                break;
+            default:
+                throw new BugInCF("What element? %s %s", elt.getKind(), elt);
+        }
+        String file = storage.getJaifPath(className);
+        return file;
+    }
 
     // The prepare*ForWriting hooks are needed in addition to the postProcessClassTree hook because
     // a scene may be modifed and written at any time, including before or after

@@ -141,7 +141,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(constructorElt);
-        String file = addClassesForElement(constructorElt);
+        String file = getFileForElement(constructorElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos constructorAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(constructorElt));
@@ -158,7 +158,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = addClassesForElement(methodElt);
+        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -224,7 +224,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = addClassesForElement(methodElt);
+        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -259,7 +259,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         String className = getEnclosingClassName(lhs);
-        String file = addClassesForElement(methodElt);
+        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -327,7 +327,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        String file = addClassesForElement(element);
+        String file = getFileForElement(element);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
@@ -396,7 +396,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = classSymbol.flatname.toString();
-        String file = addClassesForElement(methodElt);
+        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -436,7 +436,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                             overriddenMethodElement);
 
             String superClassName = getEnclosingClassName(overriddenMethodElement);
-            String superClassFile = addClassesForElement(overriddenMethodElement);
+            String superClassFile = getFileForElement(overriddenMethodElement);
             ClassOrInterfaceAnnos superClassAnnos = classToAnnos.get(superClassName);
             CallableDeclarationAnnos overriddenMethodInSuperclass =
                     superClassAnnos.callableDeclarations.get(
@@ -463,7 +463,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String className = getEnclosingClassName(methodElt);
-        String file = addClassesForElement(methodElt);
+        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -980,6 +980,16 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     ///
     /// Writing to a file
     ///
+
+    /**
+     * Returns the file corresponding to the given element.
+     *
+     * @param elt an element
+     * @return the path to the file where inference results for the element will be written
+     */
+    private String getFileForElement(Element elt) {
+        return addClassesForElement(elt);
+    }
 
     // The prepare*ForWriting hooks are needed in addition to the postProcessClassTree hook because
     // a scene may be modifed and written at any time, including before or after
