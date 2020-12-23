@@ -129,10 +129,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         String className = getEnclosingClassName(constructorElt);
         String file = storage.getJaifPath(className);
-        AClass clazz =
+        AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) constructorElt).enclClass());
         AMethod constructorAnnos =
-                clazz.methods.getVivify(JVMNames.getJVMMethodSignature(constructorElt));
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(constructorElt));
         constructorAnnos.setFieldsFromMethodElement(constructorElt);
 
         List<Node> arguments = objectCreationNode.getArguments();
@@ -149,8 +149,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         String className = getEnclosingClassName(methodElt);
         String file = storage.getJaifPath(className);
-        AClass clazz = storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
-        AMethod methodAnnos = clazz.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        AClass classAnnos =
+                storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
         methodAnnos.setFieldsFromMethodElement(methodElt);
 
         List<Node> arguments = methodInvNode.getArguments();
@@ -206,9 +208,11 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         String className = getEnclosingClassName(methodElt);
         String file = storage.getJaifPath(className);
-        AClass clazz = storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
-        AMethod method = clazz.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
-        method.setFieldsFromMethodElement(methodElt);
+        AClass classAnnos =
+                storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        methodAnnos.setFieldsFromMethodElement(methodElt);
 
         for (int i = 0; i < overriddenMethod.getParameterTypes().size(); i++) {
             VariableElement ve = methodElt.getParameters().get(i);
@@ -216,7 +220,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
             AnnotatedTypeMirror argATM = overriddenMethod.getParameterTypes().get(i);
             AField param =
-                    method.vivifyAndAddTypeMirrorToParameter(
+                    methodAnnos.vivifyAndAddTypeMirrorToParameter(
                             i, argATM.getUnderlyingType(), ve.getSimpleName());
             updateAnnotationSet(param.type, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
@@ -226,7 +230,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             AnnotatedTypeMirror paramATM =
                     atypeFactory.getAnnotatedType(methodTree).getReceiverType();
             if (paramATM != null) {
-                AField receiver = method.receiver;
+                AField receiver = methodAnnos.receiver;
                 updateAnnotationSet(
                         receiver.type, TypeUseLocation.RECEIVER, argADT, paramATM, file);
             }
@@ -244,11 +248,12 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         String className = getEnclosingClassName(lhs);
         String file = storage.getJaifPath(className);
-        AClass clazz =
+        AClass classAnnos =
                 storage.getAClass(
                         className, file, (ClassSymbol) TreeUtils.elementFromDeclaration(classTree));
-        AMethod method = clazz.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
-        method.setFieldsFromMethodElement(methodElt);
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        methodAnnos.setFieldsFromMethodElement(methodElt);
 
         List<? extends VariableTree> params = methodTree.getParameters();
         // Look-up parameter by name:
@@ -268,7 +273,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                 AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
                 VariableElement ve = TreeUtils.elementFromDeclaration(vt);
                 AField param =
-                        method.vivifyAndAddTypeMirrorToParameter(
+                        methodAnnos.vivifyAndAddTypeMirrorToParameter(
                                 i, argATM.getUnderlyingType(), ve.getSimpleName());
 
                 updateAnnotationSet(param.type, TypeUseLocation.PARAMETER, argATM, paramATM, file);
@@ -314,10 +319,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
         String file = storage.getJaifPath(className);
-        AClass clazz = storage.getAClass(className, file, enclosingClass);
+        AClass classAnnos = storage.getAClass(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
-        AField field = clazz.fields.getVivify(fieldName);
+        AField field = classAnnos.fields.getVivify(fieldName);
         field.setTypeMirror(lhsATM.getUnderlyingType());
 
         updateAnnotationSet(field.type, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
@@ -402,10 +407,11 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = classSymbol.flatname.toString();
         String file = storage.getJaifPath(className);
-        AClass clazz = storage.getAClass(className, file, classSymbol);
+        AClass classAnnos = storage.getAClass(className, file, classSymbol);
 
-        AMethod method = clazz.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
-        method.setFieldsFromMethodElement(methodElt);
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        methodAnnos.setFieldsFromMethodElement(methodElt);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(methodTree).getReturnType();
 
@@ -418,7 +424,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             dependentTypesHelper.standardizeReturnType(
                     methodTree, rhsATM, /*removeErroneousExpressions=*/ true);
         }
-        updateAnnotationSet(method.returnType, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
+        updateAnnotationSet(methodAnnos.returnType, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
 
         // Now, update return types of overridden methods based on the implementation we just saw.
         // This inference is similar to the inference procedure for method parameters: both are
@@ -482,11 +488,12 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         String file = storage.getJaifPath(className);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
-        AMethod method = classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
 
         scenelib.annotations.Annotation sceneAnno =
                 AnnotationConverter.annotationMirrorToAnnotation(anno);
-        method.tlAnnotationsHere.add(sceneAnno);
+        methodAnnos.tlAnnotationsHere.add(sceneAnno);
     }
 
     /**
