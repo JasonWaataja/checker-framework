@@ -305,44 +305,35 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     }
 
     @Override
-    public void updateFromLocalAssignment(
-            LocalVariableNode lhs, Node rhs, ClassTree classTree, MethodTree methodTree) {
+    public void updateFromFormalParameterAssignment(
+            LocalVariableNode lhs, Node rhs, VariableElement paramElt) {
         // Don't infer types for code that isn't presented as source.
         if (!isElementFromSourceCode(lhs)) {
             return;
         }
 
-        ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
-        String file = getFileForElement(methodElt);
-
-        String className = getEnclosingClassName(lhs);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
-        CallableDeclarationAnnos methodAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
-
-        List<? extends VariableTree> params = methodTree.getParameters();
-        // Look-up parameter by name:
-        for (int i = 0; i < params.size(); i++) {
-            VariableTree vt = params.get(i);
-            if (vt.getName().contentEquals(lhs.getName())) {
-                Tree rhsTree = rhs.getTree();
-                if (rhsTree == null) {
-                    // TODO: Handle variable-length list as parameter.
-                    // An ArrayCreationNode with a null tree is created when the
-                    // parameter is a variable-length list. We are ignoring it for now.
-                    // See Issue 682
-                    // https://github.com/typetools/checker-framework/issues/682
-                    continue;
-                }
-                AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(vt);
-                AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
-                VariableElement ve = TreeUtils.elementFromDeclaration(vt);
-                AnnotatedTypeMirror paramType =
-                        getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
-                updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
-                break;
-            }
+        Tree rhsTree = rhs.getTree();
+        if (rhsTree == null) {
+            // TODO: Handle variable-length list as parameter.
+            // An ArrayCreationNode with a null tree is created when the
+            // parameter is a variable-length list. We are ignoring it for now.
+            // See Issue 682
+            // https://github.com/typetools/checker-framework/issues/682
+            return;
         }
+
+        ExecutableElement methodElt = (ExecutableElement) paramElt.getEnclosingElement();
+        String file = getFileForElement(methodElt);
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt, file);
+
+        AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(paramElt);
+        AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
+        int i = methodElt.getParameters().indexOf(paramElt);
+        assert i != -1;
+        AnnotatedTypeMirror paramType =
+                getParameterType(methodAnnos, i, paramATM, paramElt, atypeFactory);
+        updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+        return;
     }
 
     @Override
@@ -995,7 +986,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
      * @param localVariableNode the {@link LocalVariableNode}
      * @return the "flatname" of the class enclosing {@code localVariableNode}
      */
-    @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
+    @SuppressWarnings({
+        "signature", // https://tinyurl.com/cfissue/3094
+        "UnusedMethod" // remove this method
+    })
     private @BinaryName String getEnclosingClassName(LocalVariableNode localVariableNode) {
         return ((ClassSymbol) ElementUtils.enclosingClass(localVariableNode.getElement()))
                 .flatName()

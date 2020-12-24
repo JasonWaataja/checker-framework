@@ -3,7 +3,6 @@ package org.checkerframework.common.wholeprograminference;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
@@ -285,48 +284,33 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     @Override
-    public void updateFromLocalAssignment(
-            LocalVariableNode lhs, Node rhs, ClassTree classTree, MethodTree methodTree) {
+    public void updateFromFormalParameterAssignment(
+            LocalVariableNode lhs, Node rhs, VariableElement paramElt) {
         // Don't infer types for code that isn't presented as source.
         if (!isElementFromSourceCode(lhs)) {
             return;
         }
 
-        ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
-        String file = getFileForElement(methodElt);
-
-        // NOT SAME
-        String className = getEnclosingClassName(lhs);
-        AClass classAnnos =
-                storage.getAClass(
-                        className, file, (ClassSymbol) TreeUtils.elementFromDeclaration(classTree));
-        AMethod methodAnnos =
-                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
-        methodAnnos.setFieldsFromMethodElement(methodElt);
-
-        List<? extends VariableTree> params = methodTree.getParameters();
-        // Look-up parameter by name:
-        for (int i = 0; i < params.size(); i++) {
-            VariableTree vt = params.get(i);
-            if (vt.getName().contentEquals(lhs.getName())) {
-                Tree rhsTree = rhs.getTree();
-                if (rhsTree == null) {
-                    // TODO: Handle variable-length list as parameter.
-                    // An ArrayCreationNode with a null tree is created when the
-                    // parameter is a variable-length list. We are ignoring it for now.
-                    // See Issue 682
-                    // https://github.com/typetools/checker-framework/issues/682
-                    continue;
-                }
-                AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(vt);
-                AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
-                VariableElement ve = TreeUtils.elementFromDeclaration(vt);
-                ATypeElement paramType =
-                        getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
-                updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
-                break;
-            }
+        Tree rhsTree = rhs.getTree();
+        if (rhsTree == null) {
+            // TODO: Handle variable-length list as parameter.
+            // An ArrayCreationNode with a null tree is created when the
+            // parameter is a variable-length list. We are ignoring it for now.
+            // See Issue 682
+            // https://github.com/typetools/checker-framework/issues/682
+            return;
         }
+
+        ExecutableElement methodElt = (ExecutableElement) paramElt.getEnclosingElement();
+        String file = getFileForElement(methodElt);
+        AMethod methodAnnos = getMethodAnnos(methodElt, file);
+
+        AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(paramElt);
+        AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
+        int i = methodElt.getParameters().indexOf(paramElt);
+        assert i != -1;
+        ATypeElement paramType = getParameterType(methodAnnos, i, paramATM, paramElt, atypeFactory);
+        updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
     }
 
     @Override
