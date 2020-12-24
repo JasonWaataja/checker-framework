@@ -136,6 +136,25 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         return methodAnnos;
     }
 
+    private ATypeElement getParameterType(
+            AMethod methodAnnos,
+            int i,
+            AnnotatedTypeMirror paramATM,
+            VariableElement ve,
+            @SuppressWarnings("UnusedVariable") AnnotatedTypeFactory atypeFactory) {
+        AField param =
+                methodAnnos.vivifyAndAddTypeMirrorToParameter(
+                        i, paramATM.getUnderlyingType(), ve.getSimpleName());
+        return param.type;
+    }
+
+    private ATypeElement getReceiverType(
+            AMethod methodAnnos,
+            @SuppressWarnings("UnusedVariable") AnnotatedTypeMirror paramATM,
+            @SuppressWarnings("UnusedVariable") AnnotatedTypeMirror atypeFactory) {
+        return methodAnnos.receiver.type;
+    }
+
     @Override
     public void updateFromObjectCreation(
             ObjectCreationNode objectCreationNode, ExecutableElement constructorElt) {
@@ -181,9 +200,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             List<Node> arguments) {
 
         for (int i = 0; i < arguments.size(); i++) {
-            VariableElement ve = methodElt.getParameters().get(i);
-            AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
-
             Node arg = arguments.get(i);
             Tree argTree = arg.getTree();
             if (argTree == null) {
@@ -194,11 +210,13 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                 // https://github.com/typetools/checker-framework/issues/682
                 continue;
             }
+
+            VariableElement ve = methodElt.getParameters().get(i);
+            AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
-            AField param =
-                    executableAnnos.vivifyAndAddTypeMirrorToParameter(
-                            i, argATM.getUnderlyingType(), ve.getSimpleName());
-            updateAnnotationSet(param.type, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+            ATypeElement paramType =
+                    getParameterType(executableAnnos, i, paramATM, ve, atypeFactory);
+            updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
     }
 
@@ -218,12 +236,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         for (int i = 0; i < overriddenMethod.getParameterTypes().size(); i++) {
             VariableElement ve = methodElt.getParameters().get(i);
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
-
             AnnotatedTypeMirror argATM = overriddenMethod.getParameterTypes().get(i);
-            AField param =
-                    methodAnnos.vivifyAndAddTypeMirrorToParameter(
-                            i, argATM.getUnderlyingType(), ve.getSimpleName());
-            updateAnnotationSet(param.type, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+            ATypeElement paramType = getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
+            updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
 
         AnnotatedDeclaredType argADT = overriddenMethod.getReceiverType();
@@ -231,9 +246,8 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             AnnotatedTypeMirror paramATM =
                     atypeFactory.getAnnotatedType(methodTree).getReceiverType();
             if (paramATM != null) {
-                AField receiver = methodAnnos.receiver;
-                updateAnnotationSet(
-                        receiver.type, TypeUseLocation.RECEIVER, argADT, paramATM, file);
+                AnnotatedTypeMirror receiver = getReceiverType(methodAnnos, paramATM, atypeFactory);
+                updateAnnotationSet(receiver, TypeUseLocation.RECEIVER, argADT, paramATM, file);
             }
         }
     }
@@ -275,11 +289,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                 AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(vt);
                 AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
                 VariableElement ve = TreeUtils.elementFromDeclaration(vt);
-                AField param =
-                        methodAnnos.vivifyAndAddTypeMirrorToParameter(
-                                i, argATM.getUnderlyingType(), ve.getSimpleName());
-
-                updateAnnotationSet(param.type, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+                ATypeElement paramType =
+                        getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
+                updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
                 break;
             }
         }

@@ -148,6 +148,22 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return methodAnnos;
     }
 
+    private AnnotatedTypeMirror getParameterType(
+            CallableDeclarationAnnos methodAnnos,
+            int i,
+            AnnotatedTypeMirror paramATM,
+            @SuppressWarnings("UnusedVariable") VariableElement ve,
+            AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.getParameterType(paramATM, i, atypeFactory);
+    }
+
+    private AnnotatedTypeMirror getReceiverType(
+            CallableDeclarationAnnos methodAnnos,
+            AnnotatedTypeMirror paramATM,
+            AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.getReceiverType(paramATM, atypeFactory);
+    }
+
     @Override
     public void updateFromObjectCreation(
             ObjectCreationNode objectCreationNode, ExecutableElement constructorElt) {
@@ -201,9 +217,6 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             List<Node> arguments) {
 
         for (int i = 0; i < arguments.size(); i++) {
-            VariableElement ve = methodElt.getParameters().get(i);
-            AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
-
             Node arg = arguments.get(i);
             Tree argTree = arg.getTree();
             if (argTree == null) {
@@ -214,9 +227,13 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                 // https://github.com/typetools/checker-framework/issues/682
                 continue;
             }
+
+            VariableElement ve = methodElt.getParameters().get(i);
+            AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
-            AnnotatedTypeMirror param = executableAnnos.getParameterType(argATM, atypeFactory, i);
-            updateAnnotationSet(param, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+            AnnotatedTypeMirror paramType =
+                    getParameterType(executableAnnos, i, paramATM, ve, atypeFactory);
+            updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
     }
 
@@ -236,10 +253,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         for (int i = 0; i < overriddenMethod.getParameterTypes().size(); i++) {
             VariableElement ve = methodElt.getParameters().get(i);
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
-
             AnnotatedTypeMirror argATM = overriddenMethod.getParameterTypes().get(i);
-            AnnotatedTypeMirror param = methodAnnos.getParameterType(argATM, atypeFactory, i);
-            updateAnnotationSet(param, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+            AnnotatedTypeMirror paramType =
+                    getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
+            updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
 
         AnnotatedDeclaredType argADT = overriddenMethod.getReceiverType();
@@ -247,7 +264,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             AnnotatedTypeMirror paramATM =
                     atypeFactory.getAnnotatedType(methodTree).getReceiverType();
             if (paramATM != null) {
-                AnnotatedTypeMirror receiver = methodAnnos.getReceiverType(paramATM, atypeFactory);
+                AnnotatedTypeMirror receiver = getReceiverType(methodAnnos, paramATM, atypeFactory);
                 updateAnnotationSet(receiver, TypeUseLocation.RECEIVER, argADT, paramATM, file);
             }
         }
@@ -285,8 +302,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                 }
                 AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(vt);
                 AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
-                AnnotatedTypeMirror param = methodAnnos.getParameterType(paramATM, atypeFactory, i);
-                updateAnnotationSet(param, TypeUseLocation.PARAMETER, argATM, paramATM, file);
+                VariableElement ve = TreeUtils.elementFromDeclaration(vt);
+                AnnotatedTypeMirror paramType =
+                        getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
+                updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
                 break;
             }
         }
@@ -1240,7 +1259,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
          *     parameter at the given index
          */
         public AnnotatedTypeMirror getParameterType(
-                AnnotatedTypeMirror type, AnnotatedTypeFactory atf, int index) {
+                AnnotatedTypeMirror type, int index, AnnotatedTypeFactory atf) {
             if (parameterTypes == null) {
                 parameterTypes = new ArrayList<>();
                 for (int i = 0; i < declaration.getParameters().size(); i++) {
