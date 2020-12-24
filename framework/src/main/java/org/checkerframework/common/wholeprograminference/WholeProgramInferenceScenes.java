@@ -119,43 +119,56 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         storage = new WholeProgramInferenceScenesStorage(atypeFactory, ignoreNullAssignments);
     }
 
-    @Override
-    public void updateFromObjectCreation(
-            ObjectCreationNode objectCreationNode, ExecutableElement constructorElt) {
-        // Don't infer types for code that isn't presented as source.
-        if (!ElementUtils.isElementFromSourceCode(constructorElt)) {
-            return;
-        }
-
-        String className = getEnclosingClassName(constructorElt);
-        String file = getFileForElement(constructorElt);
+    /**
+     * Get the annotations for a method or constructor.
+     *
+     * @param methodElt the method or constructor
+     * @param file the annotation file containing the method or constructor
+     * @return the annotations for a method or constructor
+     */
+    private AMethod getMethodAnnos(ExecutableElement methodElt, String file) {
+        String className = getEnclosingClassName(methodElt);
         AClass classAnnos =
-                storage.getAClass(className, file, ((MethodSymbol) constructorElt).enclClass());
-        AMethod constructorAnnos =
-                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(constructorElt));
-        constructorAnnos.setFieldsFromMethodElement(constructorElt);
-
-        List<Node> arguments = objectCreationNode.getArguments();
-        updateInferredExecutableParameterTypes(constructorElt, file, constructorAnnos, arguments);
+                storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
+        AMethod methodAnnos =
+                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
+        methodAnnos.setFieldsFromMethodElement(methodElt);
+        return methodAnnos;
     }
 
     @Override
-    public void updateFromMethodInvocation(
-            MethodInvocationNode methodInvNode, Tree receiverTree, ExecutableElement methodElt) {
+    public void updateFromObjectCreation(ObjectCreationNode node, ExecutableElement methodElt) {
         // Don't infer types for code that isn't presented as source.
         if (!ElementUtils.isElementFromSourceCode(methodElt)) {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
         String file = getFileForElement(methodElt);
+        AMethod methodAnnos = getMethodAnnos(methodElt, file);
+
+        List<Node> arguments = node.getArguments();
+        updateInferredExecutableParameterTypes(methodElt, file, methodAnnos, arguments);
+    }
+
+    @Override
+    public void updateFromMethodInvocation(
+            MethodInvocationNode node, Tree receiverTree, ExecutableElement methodElt) {
+        // Don't infer types for code that isn't presented as source.
+        if (!ElementUtils.isElementFromSourceCode(methodElt)) {
+            return;
+        }
+
+        // SAME
+        String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
                 classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
         methodAnnos.setFieldsFromMethodElement(methodElt);
 
-        List<Node> arguments = methodInvNode.getArguments();
+        List<Node> arguments = node.getArguments();
         updateInferredExecutableParameterTypes(methodElt, file, methodAnnos, arguments);
     }
 
@@ -206,8 +219,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
+        // SAME
         String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
@@ -246,8 +261,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
-        String className = getEnclosingClassName(lhs);
         String file = getFileForElement(methodElt);
+
+        // NOT SAME
+        String className = getEnclosingClassName(lhs);
         AClass classAnnos =
                 storage.getAClass(
                         className, file, (ClassSymbol) TreeUtils.elementFromDeclaration(classTree));
@@ -314,11 +331,12 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             return;
         }
 
-        ClassSymbol enclosingClass = ((VarSymbol) element).enclClass();
+        String file = getFileForElement(element);
 
+        // NOT SAME
+        ClassSymbol enclosingClass = ((VarSymbol) element).enclClass();
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        String file = getFileForElement(element);
         AClass classAnnos = storage.getAClass(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
@@ -404,11 +422,12 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         }
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
+        String file = getFileForElement(methodElt);
+
+        // NOT SAME
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = classSymbol.flatname.toString();
-        String file = getFileForElement(methodElt);
         AClass classAnnos = storage.getAClass(className, file, classSymbol);
-
         AMethod methodAnnos =
                 classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
         methodAnnos.setFieldsFromMethodElement(methodElt);
@@ -484,8 +503,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
         String file = getFileForElement(methodElt);
+
+        // NOT SAME (Should it be??)
+        String className = getEnclosingClassName(methodElt);
         AClass classAnnos =
                 storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =

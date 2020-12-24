@@ -140,11 +140,13 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             return;
         }
 
-        String className = getEnclosingClassName(constructorElt);
         String file = getFileForElement(constructorElt);
+
+        String className = getEnclosingClassName(constructorElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos constructorAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(constructorElt));
+
         List<Node> arguments = objectCreationNode.getArguments();
         updateInferredExecutableParameterTypes(constructorElt, file, constructorAnnos, arguments);
     }
@@ -157,8 +159,9 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
         String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -223,8 +226,9 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
         String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -258,8 +262,9 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
-        String className = getEnclosingClassName(lhs);
         String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(lhs);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -307,6 +312,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         // TODO: For a primitive such as long, this is yielding just @GuardedBy rather than
         // @GuardedBy({}).
         AnnotatedTypeMirror rhsATM = atypeFactory.getAnnotatedType(rhs.getTree());
+
         updateFieldFromType(lhs.getTree(), element, fieldName, rhsATM);
     }
 
@@ -325,9 +331,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             return;
         }
 
+        String file = getFileForElement(element);
+
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        String file = getFileForElement(element);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
@@ -394,9 +401,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
+        String file = getFileForElement(methodElt);
+
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = classSymbol.flatname.toString();
-        String file = getFileForElement(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
@@ -457,13 +465,15 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
     @Override
     public void addMethodDeclarationAnnotation(ExecutableElement methodElt, AnnotationMirror anno) {
+
         // Do not infer types for library code, only for type-checked source code.
         if (!ElementUtils.isElementFromSourceCode(methodElt)) {
             return;
         }
 
-        String className = getEnclosingClassName(methodElt);
         String file = getFileForElement(methodElt);
+
+        String className = getEnclosingClassName(methodElt);
         ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
