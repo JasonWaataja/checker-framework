@@ -136,23 +136,55 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         return methodAnnos;
     }
 
+    /**
+     * Get the annotations for a formal parameter type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param i the parameter index (0-based)
+     * @param paramATM the parameter type
+     * @param ve the parameter variable
+     * @param atypeFactory the type factory
+     * @return the annotations for a formal parameter type
+     */
+    @SuppressWarnings("UnusedVariable")
     private ATypeElement getParameterType(
             AMethod methodAnnos,
             int i,
             AnnotatedTypeMirror paramATM,
             VariableElement ve,
-            @SuppressWarnings("UnusedVariable") AnnotatedTypeFactory atypeFactory) {
+            AnnotatedTypeFactory atypeFactory) {
         AField param =
                 methodAnnos.vivifyAndAddTypeMirrorToParameter(
                         i, paramATM.getUnderlyingType(), ve.getSimpleName());
         return param.type;
     }
 
+    /**
+     * Get the annotations for the receiver type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param paramATM the receiver type
+     * @param atypeFactory the type factory
+     * @return the annotations for the receiver type
+     */
+    @SuppressWarnings("UnusedVariable")
     private ATypeElement getReceiverType(
-            AMethod methodAnnos,
-            @SuppressWarnings("UnusedVariable") AnnotatedTypeMirror paramATM,
-            @SuppressWarnings("UnusedVariable") AnnotatedTypeFactory atypeFactory) {
+            AMethod methodAnnos, AnnotatedTypeMirror paramATM, AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.receiver.type;
+    }
+
+    /**
+     * Get the annotations for the return type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param atm the return type
+     * @param atypeFactory the type factory
+     * @return the annotations for the return type
+     */
+    @SuppressWarnings("UnusedVariable")
+    private ATypeElement getReturnType(
+            AMethod methodAnnos, AnnotatedTypeMirror atm, AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.returnType;
     }
 
     @Override
@@ -441,7 +473,8 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             dependentTypesHelper.standardizeReturnType(
                     methodTree, rhsATM, /*removeErroneousExpressions=*/ true);
         }
-        updateAnnotationSet(methodAnnos.returnType, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
+        ATypeElement returnTypeAnnos = getReturnType(methodAnnos, lhsATM, atypeFactory);
+        updateAnnotationSet(returnTypeAnnos, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
 
         // Now, update return types of overridden methods based on the implementation we just saw.
         // This inference is similar to the inference procedure for method parameters: both are

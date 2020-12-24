@@ -148,20 +148,54 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return methodAnnos;
     }
 
+    /**
+     * Get the annotations for a formal parameter type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param i the parameter index (0-based)
+     * @param paramATM the parameter type
+     * @param ve the parameter variable
+     * @param atypeFactory the type factory
+     * @return the annotations for a formal parameter type
+     */
+    @SuppressWarnings("UnusedVariable")
     private AnnotatedTypeMirror getParameterType(
             CallableDeclarationAnnos methodAnnos,
             int i,
             AnnotatedTypeMirror paramATM,
-            @SuppressWarnings("UnusedVariable") VariableElement ve,
+            VariableElement ve,
             AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.getParameterType(paramATM, i, atypeFactory);
     }
 
+    /**
+     * Get the annotations for the receiver type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param paramATM the receiver type
+     * @param atypeFactory the type factory
+     * @return the annotations for the receiver type
+     */
     private AnnotatedTypeMirror getReceiverType(
             CallableDeclarationAnnos methodAnnos,
             AnnotatedTypeMirror paramATM,
             AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.getReceiverType(paramATM, atypeFactory);
+    }
+
+    /**
+     * Get the annotations for the return type.
+     *
+     * @param methodAnnos the method or constructor annotations
+     * @param atm the return type
+     * @param atypeFactory the type factory
+     * @return the annotations for the return type
+     */
+    private AnnotatedTypeMirror getReturnType(
+            CallableDeclarationAnnos methodAnnos,
+            AnnotatedTypeMirror atm,
+            AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.getReturnType(atm, atypeFactory);
     }
 
     @Override
@@ -432,8 +466,8 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         // Type of the expression returned
         AnnotatedTypeMirror rhsATM =
                 atypeFactory.getAnnotatedType(retNode.getTree().getExpression());
-        AnnotatedTypeMirror returnType = methodAnnos.getReturnType(lhsATM, atypeFactory);
-        updateAnnotationSet(returnType, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
+        AnnotatedTypeMirror returnTypeAnnos = getReturnType(methodAnnos, lhsATM, atypeFactory);
+        updateAnnotationSet(returnTypeAnnos, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
 
         // Now, update return types of overridden methods based on the implementation we just saw.
         // This inference is similar to the inference procedure for method parameters: both are
@@ -470,8 +504,8 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                             JVMNames.getJVMMethodSignature(overriddenMethodElement));
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
             AnnotatedTypeMirror storedOverriddenMethodReturnType =
-                    overriddenMethodInSuperclass.getReturnType(
-                            overriddenMethodReturnType, atypeFactory);
+                    getReturnType(
+                            overriddenMethodInSuperclass, overriddenMethodReturnType, atypeFactory);
 
             updateAnnotationSet(
                     storedOverriddenMethodReturnType,
