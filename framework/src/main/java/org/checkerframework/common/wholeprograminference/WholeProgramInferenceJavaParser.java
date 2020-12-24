@@ -132,6 +132,22 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         this.ignoreNullAssignments = ignoreNullAssignments;
     }
 
+    /**
+     * Get the annotations for a method or constructor.
+     *
+     * @param methodElt the method or constructor
+     * @param file the annotation file containing the method or constructor
+     * @return the annotations for a method or constructor
+     */
+    @SuppressWarnings("UnusedVariable")
+    private CallableDeclarationAnnos getMethodAnnos(ExecutableElement methodElt, String file) {
+        String className = getEnclosingClassName(methodElt);
+        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        CallableDeclarationAnnos methodAnnos =
+                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
+        return methodAnnos;
+    }
+
     @Override
     public void updateFromObjectCreation(
             ObjectCreationNode objectCreationNode, ExecutableElement constructorElt) {
@@ -141,12 +157,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String file = getFileForElement(constructorElt);
-
-        String className = getEnclosingClassName(constructorElt);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
-        CallableDeclarationAnnos constructorAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(constructorElt));
-
+        CallableDeclarationAnnos constructorAnnos = getMethodAnnos(constructorElt, file);
         List<Node> arguments = objectCreationNode.getArguments();
         updateInferredExecutableParameterTypes(constructorElt, file, constructorAnnos, arguments);
     }
@@ -160,11 +171,8 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String file = getFileForElement(methodElt);
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt, file);
 
-        String className = getEnclosingClassName(methodElt);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
-        CallableDeclarationAnnos methodAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
         // TODO JWAATAJA: Under what circumstances is `methodAnnos` null?
         // TODO JWAATAJA: Why is "valueOf" treated specially?
         // TODO JWAATAJA: This treats all methods named "valueOf" the same, regardless of their
@@ -207,12 +215,8 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                 continue;
             }
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
-            updateAnnotationSet(
-                    executableAnnos.getParameterType(argATM, atypeFactory, i),
-                    TypeUseLocation.PARAMETER,
-                    argATM,
-                    paramATM,
-                    file);
+            AnnotatedTypeMirror param = executableAnnos.getParameterType(argATM, atypeFactory, i);
+            updateAnnotationSet(param, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
     }
 
@@ -227,11 +231,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String file = getFileForElement(methodElt);
-
-        String className = getEnclosingClassName(methodElt);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
-        CallableDeclarationAnnos methodAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt, file);
 
         for (int i = 0; i < overriddenMethod.getParameterTypes().size(); i++) {
             VariableElement ve = methodElt.getParameters().get(i);
