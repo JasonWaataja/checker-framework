@@ -151,7 +151,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     private ATypeElement getReceiverType(
             AMethod methodAnnos,
             @SuppressWarnings("UnusedVariable") AnnotatedTypeMirror paramATM,
-            @SuppressWarnings("UnusedVariable") AnnotatedTypeMirror atypeFactory) {
+            @SuppressWarnings("UnusedVariable") AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.receiver.type;
     }
 
@@ -246,7 +246,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             AnnotatedTypeMirror paramATM =
                     atypeFactory.getAnnotatedType(methodTree).getReceiverType();
             if (paramATM != null) {
-                AnnotatedTypeMirror receiver = getReceiverType(methodAnnos, paramATM, atypeFactory);
+                ATypeElement receiver = getReceiverType(methodAnnos, paramATM, atypeFactory);
                 updateAnnotationSet(receiver, TypeUseLocation.RECEIVER, argADT, paramATM, file);
             }
         }
