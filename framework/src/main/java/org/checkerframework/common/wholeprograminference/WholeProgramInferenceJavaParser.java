@@ -333,7 +333,6 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         AnnotatedTypeMirror paramType =
                 getParameterType(methodAnnos, i, paramATM, paramElt, atypeFactory);
         updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
-        return;
     }
 
     @Override
