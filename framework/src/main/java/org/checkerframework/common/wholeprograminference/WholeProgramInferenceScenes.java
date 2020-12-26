@@ -518,15 +518,8 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
             String superClassName = getEnclosingClassName(overriddenMethodElement);
             String superClassFile = storage.getJaifPath(superClassName);
-            AClass superClassAnnos =
-                    getClassAnnos(
-                            superClassName,
-                            superClassFile,
-                            ((MethodSymbol) overriddenMethodElement).enclClass());
             AMethod overriddenMethodInSuperclass =
-                    superClassAnnos.methods.getVivify(
-                            JVMNames.getJVMMethodSignature(overriddenMethodElement));
-            overriddenMethodInSuperclass.setFieldsFromMethodElement(overriddenMethodElement);
+                    getMethodAnnos(overriddenMethodElement, superClassFile);
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
             ATypeElement storedOverriddenMethodReturnType =
                     getReturnType(

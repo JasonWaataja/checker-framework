@@ -523,16 +523,9 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                             superclassDecl,
                             overriddenMethodElement);
 
-            String superClassName = getEnclosingClassName(overriddenMethodElement);
             String superClassFile = getFileForElement(overriddenMethodElement);
-            ClassOrInterfaceAnnos superClassAnnos =
-                    getClassAnnos(
-                            superClassName,
-                            superClassFile,
-                            ((MethodSymbol) overriddenMethodElement).enclClass());
             CallableDeclarationAnnos overriddenMethodInSuperclass =
-                    superClassAnnos.callableDeclarations.get(
-                            JVMNames.getJVMMethodSignature(overriddenMethodElement));
+                    getMethodAnnos(overriddenMethodElement, superClassFile);
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
             AnnotatedTypeMirror storedOverriddenMethodReturnType =
                     getReturnType(
