@@ -13,6 +13,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.wholeprograminference.scenelib.ASceneWrapper;
@@ -119,6 +120,19 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
+     * Get the annotations for a class.
+     *
+     * @param className the name of the class to get, in binary form
+     * @param file the path to the file that represents the class
+     * @param classSymbol optionally, the ClassSymbol representing the class
+     * @return the annotations for the class
+     */
+    private AClass getClassAnnos(
+            @BinaryName String className, String file, @Nullable ClassSymbol classSymbol) {
+        return storage.getAClass(className, file, classSymbol);
+    }
+
+    /**
      * Get the annotations for a method or constructor.
      *
      * @param methodElt the method or constructor
@@ -127,8 +141,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      */
     private AMethod getMethodAnnos(ExecutableElement methodElt, String file) {
         String className = getEnclosingClassName(methodElt);
-        AClass classAnnos =
-                storage.getAClass(className, file, ((MethodSymbol) methodElt).enclClass());
+        AClass classAnnos = getClassAnnos(className, file, ((MethodSymbol) methodElt).enclClass());
         AMethod methodAnnos =
                 classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
         methodAnnos.setFieldsFromMethodElement(methodElt);
@@ -184,6 +197,16 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     private ATypeElement getReturnType(
             AMethod methodAnnos, AnnotatedTypeMirror atm, AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.returnType;
+    }
+
+    public ATypeElement getFieldType(
+            AClass classAnnos,
+            String fieldName,
+            AnnotatedTypeMirror lhsATM,
+            AnnotatedTypeFactory atypeFactory) {
+        AField field = classAnnos.fields.getVivify(fieldName);
+        field.setTypeMirror(lhsATM.getUnderlyingType());
+        return field.type;
     }
 
     @Override
@@ -345,19 +368,23 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             return;
         }
 
+        ClassSymbol enclosingClass = ((VarSymbol) element).enclClass();
+
+        // Don't infer types for code that isn't presented as source.
+        if (!ElementUtils.isElementFromSourceCode(enclosingClass)) {
+            return;
+        }
+
         String file = getFileForElement(element);
 
-        // NOT SAME
-        ClassSymbol enclosingClass = ((VarSymbol) element).enclClass();
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        AClass classAnnos = storage.getAClass(className, file, enclosingClass);
+        AClass classAnnos = getClassAnnos(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
-        AField field = classAnnos.fields.getVivify(fieldName);
-        field.setTypeMirror(lhsATM.getUnderlyingType());
+        ATypeElement fieldType = getFieldType(classAnnos, fieldName, lhsATM, atypeFactory);
 
-        updateAnnotationSet(field.type, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
+        updateAnnotationSet(fieldType, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
     }
 
     /**
@@ -438,14 +465,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         String file = getFileForElement(methodElt);
 
-        // NOT SAME
-        @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
-        @BinaryName String className = classSymbol.flatname.toString();
-        AClass classAnnos = storage.getAClass(className, file, classSymbol);
-        AMethod methodAnnos =
-                classAnnos.methods.getVivify(JVMNames.getJVMMethodSignature(methodElt));
-        methodAnnos.setFieldsFromMethodElement(methodElt);
-
+        AMethod methodAnnos = getMethodAnnos(methodElt, file);
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(methodTree).getReturnType();
 
         // Type of the expression returned
@@ -490,7 +510,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             String superClassName = getEnclosingClassName(overriddenMethodElement);
             String superClassFile = storage.getJaifPath(superClassName);
             AClass superClassAnnos =
-                    storage.getAClass(
+                    getClassAnnos(
                             superClassName,
                             superClassFile,
                             ((MethodSymbol) overriddenMethodElement).enclClass());
@@ -499,7 +519,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                             JVMNames.getJVMMethodSignature(overriddenMethodElement));
             overriddenMethodInSuperclass.setFieldsFromMethodElement(overriddenMethodElement);
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
-            ATypeElement storedOverriddenMethodReturnType = overriddenMethodInSuperclass.returnType;
+            ATypeElement storedOverriddenMethodReturnType =
+                    getReturnType(
+                            overriddenMethodInSuperclass, overriddenMethodReturnType, atypeFactory);
 
             updateAnnotationSet(
                     storedOverriddenMethodReturnType,
@@ -553,6 +575,20 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     ///
     /// Classes and class names
     ///
+
+    /**
+     * Returns the binary name of the type declaration in {@code element}
+     *
+     * @param element a type declaration
+     * @return the binary name of {@code element}
+     */
+    @SuppressWarnings({
+        "signature", // https://tinyurl.com/cfissue/3094
+        "UnusedMethod"
+    })
+    private @BinaryName String getClassName(Element element) {
+        return ((ClassSymbol) element).flatName().toString();
+    }
 
     /**
      * Returns the "flatname" of the class enclosing {@code localVariableNode}.

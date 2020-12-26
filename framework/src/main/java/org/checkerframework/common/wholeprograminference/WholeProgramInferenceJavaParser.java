@@ -69,7 +69,9 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -133,6 +135,20 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     }
 
     /**
+     * Get the annotations for a class.
+     *
+     * @param className the name of the class to get, in binary form
+     * @param file the path to the file that represents the class
+     * @param classSymbol optionally, the ClassSymbol representing the class
+     * @return the annotations for the class
+     */
+    @SuppressWarnings("UnusedVariable")
+    private ClassOrInterfaceAnnos getClassAnnos(
+            @BinaryName String className, String file, @Nullable ClassSymbol classSymbol) {
+        return classToAnnos.get(className);
+    }
+
+    /**
      * Get the annotations for a method or constructor.
      *
      * @param methodElt the method or constructor
@@ -142,7 +158,8 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     @SuppressWarnings("UnusedVariable")
     private CallableDeclarationAnnos getMethodAnnos(ExecutableElement methodElt, String file) {
         String className = getEnclosingClassName(methodElt);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        ClassOrInterfaceAnnos classAnnos =
+                getClassAnnos(className, file, ((MethodSymbol) methodElt).enclClass());
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
         return methodAnnos;
@@ -196,6 +213,14 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             AnnotatedTypeMirror atm,
             AnnotatedTypeFactory atypeFactory) {
         return methodAnnos.getReturnType(atm, atypeFactory);
+    }
+
+    public AnnotatedTypeMirror getFieldType(
+            ClassOrInterfaceAnnos classAnnos,
+            String fieldName,
+            AnnotatedTypeMirror lhsATM,
+            AnnotatedTypeFactory atypeFactory) {
+        return classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
     }
 
     @Override
@@ -378,11 +403,12 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        ClassOrInterfaceAnnos classAnnos = getClassAnnos(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
-        AnnotatedTypeMirror field = classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
-        updateAnnotationSet(field, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
+        AnnotatedTypeMirror fieldType = getFieldType(classAnnos, fieldName, lhsATM, atypeFactory);
+
+        updateAnnotationSet(fieldType, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
     }
 
     /**
@@ -446,16 +472,18 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(methodTree);
         String file = getFileForElement(methodElt);
 
-        @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
-        @BinaryName String className = classSymbol.flatname.toString();
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
-        CallableDeclarationAnnos methodAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt, file);
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(methodTree).getReturnType();
 
         // Type of the expression returned
         AnnotatedTypeMirror rhsATM =
                 atypeFactory.getAnnotatedType(retNode.getTree().getExpression());
+        DependentTypesHelper dependentTypesHelper =
+                ((GenericAnnotatedTypeFactory) atypeFactory).getDependentTypesHelper();
+        if (dependentTypesHelper != null) {
+            dependentTypesHelper.standardizeReturnType(
+                    methodTree, rhsATM, /*removeErroneousExpressions=*/ true);
+        }
         AnnotatedTypeMirror returnTypeAnnos = getReturnType(methodAnnos, lhsATM, atypeFactory);
         updateAnnotationSet(returnTypeAnnos, TypeUseLocation.RETURN, rhsATM, lhsATM, file);
 
@@ -488,7 +516,11 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
             String superClassName = getEnclosingClassName(overriddenMethodElement);
             String superClassFile = getFileForElement(overriddenMethodElement);
-            ClassOrInterfaceAnnos superClassAnnos = classToAnnos.get(superClassName);
+            ClassOrInterfaceAnnos superClassAnnos =
+                    getClassAnnos(
+                            superClassName,
+                            superClassFile,
+                            ((MethodSymbol) overriddenMethodElement).enclClass());
             CallableDeclarationAnnos overriddenMethodInSuperclass =
                     superClassAnnos.callableDeclarations.get(
                             JVMNames.getJVMMethodSignature(overriddenMethodElement));
@@ -517,7 +549,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         String file = getFileForElement(methodElt);
 
         String className = getEnclosingClassName(methodElt);
-        ClassOrInterfaceAnnos classAnnos = classToAnnos.get(className);
+        ClassOrInterfaceAnnos classAnnos = getClassAnnos(className, null, null);
         CallableDeclarationAnnos methodAnnos =
                 classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
         if (methodAnnos.declarationAnnotations == null) {
@@ -823,7 +855,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                             MethodTree javacTree, CallableDeclaration<?> javaParserNode) {
                         ExecutableElement elt = TreeUtils.elementFromDeclaration(javacTree);
                         String className = getEnclosingClassName(elt);
-                        ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
+                        ClassOrInterfaceAnnos enclosingClass = getClassAnnos(className, null, null);
                         String executableName = JVMNames.getJVMMethodSignature(javacTree);
                         if (!enclosingClass.callableDeclarations.containsKey(executableName)) {
                             enclosingClass.callableDeclarations.put(
@@ -847,7 +879,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                         }
 
                         String className = getEnclosingClassName(elt);
-                        ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
+                        ClassOrInterfaceAnnos enclosingClass = getClassAnnos(className, null, null);
                         String fieldName = javacTree.getName().toString();
                         if (!enclosingClass.fields.containsKey(fieldName)) {
                             enclosingClass.fields.put(fieldName, new FieldAnnos(javaParserNode));
@@ -1304,27 +1336,6 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         /**
-         * If this wrapper holds a method, returns the inferred type of the return type. If
-         * necessary, initializes the {@code AnnotatedTypeMirror} for that location using {@code
-         * type} and {@code atf} to a wrapper around the base type for the return type.
-         *
-         * @param type base type for the return type, used for initializing the returned {@code
-         *     AnnotatedTypeMirror} the first time it's accessed
-         * @param atf the annotated type factory of a given type system, whose type hierarchy will
-         *     be used
-         * @return an {@code AnnotatedTypeMirror} containing all annotations inferred for the return
-         *     type
-         */
-        public AnnotatedTypeMirror getReturnType(
-                AnnotatedTypeMirror type, AnnotatedTypeFactory atf) {
-            if (returnType == null) {
-                returnType = AnnotatedTypeMirror.createType(type.getUnderlyingType(), atf, false);
-            }
-
-            return returnType;
-        }
-
-        /**
          * If this wrapper holds a method, returns the inferred type of the receiver type. If
          * necessary, initializes the {@code AnnotatedTypeMirror} for that location using {@code
          * type} and {@code atf} to a wrapper around the base type for the receiver type.
@@ -1343,6 +1354,27 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
             }
 
             return receiverType;
+        }
+
+        /**
+         * If this wrapper holds a method, returns the inferred type of the return type. If
+         * necessary, initializes the {@code AnnotatedTypeMirror} for that location using {@code
+         * type} and {@code atf} to a wrapper around the base type for the return type.
+         *
+         * @param type base type for the return type, used for initializing the returned {@code
+         *     AnnotatedTypeMirror} the first time it's accessed
+         * @param atf the annotated type factory of a given type system, whose type hierarchy will
+         *     be used
+         * @return an {@code AnnotatedTypeMirror} containing all annotations inferred for the return
+         *     type
+         */
+        public AnnotatedTypeMirror getReturnType(
+                AnnotatedTypeMirror type, AnnotatedTypeFactory atf) {
+            if (returnType == null) {
+                returnType = AnnotatedTypeMirror.createType(type.getUnderlyingType(), atf, false);
+            }
+
+            return returnType;
         }
 
         /**
