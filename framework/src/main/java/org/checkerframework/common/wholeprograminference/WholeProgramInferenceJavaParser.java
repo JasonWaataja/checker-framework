@@ -215,6 +215,15 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return methodAnnos.getReturnType(atm, atypeFactory);
     }
 
+    /**
+     * Get the annotations for a field type.
+     *
+     * @param classAnnos the class annotations
+     * @param fieldName the simple field name
+     * @param lhsATM the field type
+     * @param atypeFactory the annotated type factory
+     * @return the annotations for a field type
+     */
     public AnnotatedTypeMirror getFieldType(
             ClassOrInterfaceAnnos classAnnos,
             String fieldName,

@@ -199,6 +199,15 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         return methodAnnos.returnType;
     }
 
+    /**
+     * Get the annotations for a field type.
+     *
+     * @param classAnnos the class annotations
+     * @param fieldName the simple field name
+     * @param lhsATM the field type
+     * @param atypeFactory the annotated type factory
+     * @return the annotations for a field type
+     */
     public ATypeElement getFieldType(
             AClass classAnnos,
             String fieldName,
