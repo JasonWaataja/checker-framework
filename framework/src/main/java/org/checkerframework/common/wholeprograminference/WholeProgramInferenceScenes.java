@@ -120,6 +120,33 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
+     * Returns the file corresponding to the given element.
+     *
+     * @param elt an element
+     * @return the path to the file where inference results for the element will be written
+     */
+    private String getFileForElement(Element elt) {
+        String className;
+        switch (elt.getKind()) {
+            case CONSTRUCTOR:
+            case METHOD:
+                className = getEnclosingClassName((ExecutableElement) elt);
+                break;
+            case LOCAL_VARIABLE:
+                className = getEnclosingClassName((LocalVariableNode) elt);
+                break;
+            case FIELD:
+                ClassSymbol enclosingClass = ((VarSymbol) elt).enclClass();
+                className = enclosingClass.flatname.toString();
+                break;
+            default:
+                throw new BugInCF("What element? %s %s", elt.getKind(), elt);
+        }
+        String file = storage.getJaifPath(className);
+        return file;
+    }
+
+    /**
      * Get the annotations for a class.
      *
      * @param className the name of the class to get, in binary form
@@ -516,8 +543,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                             superclassDecl,
                             overriddenMethodElement);
 
-            String superClassName = getEnclosingClassName(overriddenMethodElement);
-            String superClassFile = storage.getJaifPath(superClassName);
+            String superClassFile = getFileForElement(overriddenMethodElement);
             AMethod overriddenMethodInSuperclass =
                     getMethodAnnos(overriddenMethodElement, superClassFile);
             AnnotatedTypeMirror overriddenMethodReturnType = overriddenMethod.getReturnType();
@@ -553,8 +579,12 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     /**
      * Updates the set of annotations in a location in a program.
      *
-     * <p>Calls {@link WholeProgramInferenceScenesStorage#updateAnnotationSetInScene}, forwarding
-     * the arguments.
+     * <ul>
+     *   <li>If there was no previous annotation for that location, then the updated set will be the
+     *       annotations in rhsATM.
+     *   <li>If there was a previous annotation, the updated set will be the LUB between the
+     *       previous annotation and rhsATM.
+     * </ul>
      *
      * <p>Subclasses can customize its behavior.
      *
@@ -593,6 +623,17 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
+     * Returns the "flatname" of the class enclosing {@code executableElement}.
+     *
+     * @param executableElement the ExecutableElement
+     * @return the "flatname" of the class enclosing {@code executableElement}
+     */
+    @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
+    private @BinaryName String getEnclosingClassName(ExecutableElement executableElement) {
+        return ((MethodSymbol) executableElement).enclClass().flatName().toString();
+    }
+
+    /**
      * Returns the "flatname" of the class enclosing {@code localVariableNode}.
      *
      * @param localVariableNode the {@link LocalVariableNode}
@@ -603,17 +644,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         return ((ClassSymbol) ElementUtils.enclosingClass(localVariableNode.getElement()))
                 .flatName()
                 .toString();
-    }
-
-    /**
-     * Returns the "flatname" of the class enclosing {@code executableElement}.
-     *
-     * @param executableElement the ExecutableElement
-     * @return the "flatname" of the class enclosing {@code executableElement}
-     */
-    @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
-    private @BinaryName String getEnclosingClassName(ExecutableElement executableElement) {
-        return ((MethodSymbol) executableElement).enclClass().flatName().toString();
     }
 
     /**
@@ -632,33 +662,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     ///
     /// Writing to a file
     ///
-
-    /**
-     * Returns the file corresponding to the given element.
-     *
-     * @param elt an element
-     * @return the path to the file where inference results for the element will be written
-     */
-    private String getFileForElement(Element elt) {
-        String className;
-        switch (elt.getKind()) {
-            case CONSTRUCTOR:
-            case METHOD:
-                className = getEnclosingClassName((ExecutableElement) elt);
-                break;
-            case LOCAL_VARIABLE:
-                className = getEnclosingClassName((LocalVariableNode) elt);
-                break;
-            case FIELD:
-                ClassSymbol enclosingClass = ((VarSymbol) elt).enclClass();
-                className = enclosingClass.flatname.toString();
-                break;
-            default:
-                throw new BugInCF("What element? %s %s", elt.getKind(), elt);
-        }
-        String file = storage.getJaifPath(className);
-        return file;
-    }
 
     // The prepare*ForWriting hooks are needed in addition to the postProcessClassTree hook because
     // a scene may be modifed and written at any time, including before or after

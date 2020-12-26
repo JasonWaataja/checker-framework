@@ -135,6 +135,16 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     }
 
     /**
+     * Returns the file corresponding to the given element.
+     *
+     * @param elt an element
+     * @return the path to the file where inference results for the element will be written
+     */
+    private String getFileForElement(Element elt) {
+        return addClassesForElement(elt);
+    }
+
+    /**
      * Get the annotations for a class.
      *
      * @param className the name of the class to get, in binary form
@@ -549,11 +559,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
 
         String file = getFileForElement(methodElt);
-
-        String className = getEnclosingClassName(methodElt);
-        ClassOrInterfaceAnnos classAnnos = getClassAnnos(className, null, null);
-        CallableDeclarationAnnos methodAnnos =
-                classAnnos.callableDeclarations.get(JVMNames.getJVMMethodSignature(methodElt));
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElt, file);
         if (methodAnnos.declarationAnnotations == null) {
             methodAnnos.declarationAnnotations = new LinkedHashSet<AnnotationMirror>();
         }
@@ -1070,16 +1076,6 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
     ///
     /// Writing to a file
     ///
-
-    /**
-     * Returns the file corresponding to the given element.
-     *
-     * @param elt an element
-     * @return the path to the file where inference results for the element will be written
-     */
-    private String getFileForElement(Element elt) {
-        return addClassesForElement(elt);
-    }
 
     // The prepare*ForWriting hooks are needed in addition to the postProcessClassTree hook because
     // a scene may be modifed and written at any time, including before or after
