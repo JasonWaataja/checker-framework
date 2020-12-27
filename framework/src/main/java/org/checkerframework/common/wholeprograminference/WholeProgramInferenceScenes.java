@@ -324,6 +324,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             Analysis.BeforeOrAfter preOrPost,
             ExecutableElement methodElt,
             CFAbstractStore<?, ?> store) {
+        // Don't infer types for code that isn't presented as source.
+        if (!ElementUtils.isElementFromSourceCode(methodElt)) {
+            return;
+        }
 
         if (store == null) {
             throw new BugInCF(
