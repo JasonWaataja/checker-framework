@@ -12,8 +12,10 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -25,6 +27,10 @@ import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
+import org.checkerframework.dataflow.expression.ClassName;
+import org.checkerframework.dataflow.expression.FieldAccess;
+import org.checkerframework.dataflow.expression.ThisReference;
+import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.qual.IgnoreInWholeProgramInference;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -107,21 +113,11 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @param atypeFactory the associated type factory
      */
     public WholeProgramInferenceScenes(AnnotatedTypeFactory atypeFactory) {
-        this(atypeFactory, true);
-    }
-
-    /**
-     * Constructs a new {@code WholeProgramInferenceScenes} that has not yet inferred any
-     * annotations.
-     *
-     * @param atypeFactory the associated type factory
-     * @param ignoreNullAssignments indicates whether assignments where the rhs is null should be
-     *     ignored
-     */
-    public WholeProgramInferenceScenes(
-            AnnotatedTypeFactory atypeFactory, boolean ignoreNullAssignments) {
         this.atypeFactory = atypeFactory;
-        storage = new WholeProgramInferenceScenesStorage(atypeFactory, ignoreNullAssignments);
+        boolean isNullness =
+                atypeFactory.getClass().getSimpleName().equals("NullnessAnnotatedTypeFactory");
+        boolean ignoreNullAssignments = !isNullness;
+        this.storage = new WholeProgramInferenceScenesStorage(atypeFactory, ignoreNullAssignments);
     }
 
     /**
@@ -252,7 +248,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
     @Override
     public void updateFromObjectCreation(
-            ObjectCreationNode objectCreationNode, ExecutableElement constructorElt) {
+            ObjectCreationNode objectCreationNode,
+            ExecutableElement constructorElt,
+            CFAbstractStore<?, ?> store) {
         // Don't infer types for code that isn't presented as source.
         if (!ElementUtils.isElementFromSourceCode(constructorElt)) {
             return;
@@ -262,11 +260,15 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         AMethod constructorAnnos = getMethodAnnos(constructorElt, file);
         List<Node> arguments = objectCreationNode.getArguments();
         updateInferredExecutableParameterTypes(constructorElt, file, constructorAnnos, arguments);
+        updateContracts(Analysis.BeforeOrAfter.BEFORE, constructorElt, store);
     }
 
     @Override
     public void updateFromMethodInvocation(
-            MethodInvocationNode methodInvNode, Tree receiverTree, ExecutableElement methodElt) {
+            MethodInvocationNode methodInvNode,
+            Tree receiverTree,
+            ExecutableElement methodElt,
+            CFAbstractStore<?, ?> store) {
         // Don't infer types for code that isn't presented as source.
         if (!ElementUtils.isElementFromSourceCode(methodElt)) {
             return;
@@ -277,6 +279,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         List<Node> arguments = methodInvNode.getArguments();
         updateInferredExecutableParameterTypes(methodElt, file, methodAnnos, arguments);
+        updateContracts(Analysis.BeforeOrAfter.BEFORE, methodElt, store);
     }
 
     /**
@@ -309,13 +312,13 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             VariableElement ve = methodElt.getParameters().get(i);
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(argTree);
+            atypeFactory.wpiAdjustForUpdateNonField(argATM);
             ATypeElement paramType =
                     getParameterType(executableAnnos, i, paramATM, ve, atypeFactory);
             updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
     }
 
-    /* TODO
     @Override
     public void updateContracts(
             Analysis.BeforeOrAfter preOrPost,
@@ -367,7 +370,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                     afield.type, TypeUseLocation.FIELD, inferredType, fieldDeclType, file, false);
         }
     }
-    */
 
     /**
      * Obtain the AField for an expression in scope at method entry or exit.
@@ -423,6 +425,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             VariableElement ve = methodElt.getParameters().get(i);
             AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(ve);
             AnnotatedTypeMirror argATM = overriddenMethod.getParameterTypes().get(i);
+            atypeFactory.wpiAdjustForUpdateNonField(argATM);
             ATypeElement paramType = getParameterType(methodAnnos, i, paramATM, ve, atypeFactory);
             updateAnnotationSet(paramType, TypeUseLocation.PARAMETER, argATM, paramATM, file);
         }
@@ -462,6 +465,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         AnnotatedTypeMirror paramATM = atypeFactory.getAnnotatedType(paramElt);
         AnnotatedTypeMirror argATM = atypeFactory.getAnnotatedType(rhsTree);
+        atypeFactory.wpiAdjustForUpdateNonField(argATM);
         int i = methodElt.getParameters().indexOf(paramElt);
         assert i != -1;
         ATypeElement paramType = getParameterType(methodAnnos, i, paramATM, paramElt, atypeFactory);
@@ -488,6 +492,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         // TODO: For a primitive such as long, this is yielding just @GuardedBy rather than
         // @GuardedBy({}).
         AnnotatedTypeMirror rhsATM = atypeFactory.getAnnotatedType(rhs.getTree());
+        atypeFactory.wpiAdjustForUpdateField(lhs.getTree(), element, fieldName, rhsATM);
 
         updateFieldFromType(lhs.getTree(), element, fieldName, rhsATM);
     }
@@ -526,7 +531,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @param fieldName the field's name
      * @return true if an assignment to the given field should be ignored by WPI
      */
-    private boolean ignoreFieldInWPI(Element element, String fieldName) {
+    protected boolean ignoreFieldInWPI(Element element, String fieldName) {
         // Do not attempt to infer types for fields that do not have valid
         // names. For example, compiler-generated temporary variables will
         // have invalid names. Recording facts about fields with
@@ -603,6 +608,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
         // Type of the expression returned
         AnnotatedTypeMirror rhsATM =
                 atypeFactory.getAnnotatedType(retNode.getTree().getExpression());
+        atypeFactory.wpiAdjustForUpdateNonField(rhsATM);
         DependentTypesHelper dependentTypesHelper =
                 ((GenericAnnotatedTypeFactory) atypeFactory).getDependentTypesHelper();
         if (dependentTypesHelper != null) {
@@ -720,7 +726,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             String file,
             boolean ignoreIfAnnotated) {
         storage.updateAnnotationSetInScene(
-                typeToUpdate, defLoc, rhsATM, lhsATM, file /* TODO: , ignoreIfAnnotated*/);
+                typeToUpdate, defLoc, rhsATM, lhsATM, file, ignoreIfAnnotated);
     }
 
     ///
@@ -786,11 +792,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @return an annotated type mirror with underlying type {@code typeMirror} and annotations from
      *     {@code type}
      */
-    /* TODO:
     public AnnotatedTypeMirror atmFromATypeElement(TypeMirror typeMirror, ATypeElement type) {
         return storage.atmFromATypeElement(typeMirror, type);
     }
-    */
 
     ///
     /// Writing to a file
@@ -829,7 +833,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @param methodAnnos the method or constructor annotations to modify
      */
     public void prepareMethodForWriting(AMethod methodAnnos) {
-        // This implementation does nothing.
+        atypeFactory.prepareMethodForWriting(methodAnnos);
     }
 
     @Override
