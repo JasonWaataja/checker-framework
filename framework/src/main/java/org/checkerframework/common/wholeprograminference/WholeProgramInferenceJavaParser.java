@@ -232,20 +232,27 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return methodAnnos.getReturnType(atm, atypeFactory);
     }
 
+    // TODO: pass in element instead
     /**
-     * Get the annotations for a field type.
+     * Get the annotations for a field type. The last 3 arguments describe the class that contains
+     * the field.
      *
-     * @param classAnnos the class annotations
      * @param fieldName the simple field name
      * @param lhsATM the field type
      * @param atypeFactory the annotated type factory
+     * @param className the name of the class, in binary form
+     * @param file the path to the file that represents the class
+     * @param classSymbol optionally, the ClassSymbol representing the class
      * @return the annotations for a field type
      */
     public AnnotatedTypeMirror getFieldType(
-            ClassOrInterfaceAnnos classAnnos,
             String fieldName,
             AnnotatedTypeMirror lhsATM,
-            AnnotatedTypeFactory atypeFactory) {
+            AnnotatedTypeFactory atypeFactory,
+            @BinaryName String className,
+            String file,
+            @Nullable ClassSymbol classSymbol) {
+        ClassOrInterfaceAnnos classAnnos = getClassAnnos(className, file, classSymbol);
         return classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
     }
 
@@ -528,10 +535,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        ClassOrInterfaceAnnos classAnnos = getClassAnnos(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
-        AnnotatedTypeMirror fieldType = getFieldType(classAnnos, fieldName, lhsATM, atypeFactory);
+        AnnotatedTypeMirror fieldType =
+                getFieldType(fieldName, lhsATM, atypeFactory, className, file, enclosingClass);
 
         updateAnnotationSet(fieldType, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
     }

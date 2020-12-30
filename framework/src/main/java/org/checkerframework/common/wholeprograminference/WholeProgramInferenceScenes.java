@@ -151,7 +151,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     /**
      * Get the annotations for a class.
      *
-     * @param className the name of the class to get, in binary form
+     * @param className the name of the class, in binary form
      * @param file the path to the file that represents the class
      * @param classSymbol optionally, the ClassSymbol representing the class
      * @return the annotations for the class
@@ -229,19 +229,25 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
-     * Get the annotations for a field type.
+     * Get the annotations for a field type. The last 3 arguments describe the class that contains
+     * the field.
      *
-     * @param classAnnos the class annotations
      * @param fieldName the simple field name
      * @param lhsATM the field type
      * @param atypeFactory the annotated type factory
+     * @param className the name of the class, in binary form
+     * @param file the path to the file that represents the class
+     * @param classSymbol optionally, the ClassSymbol representing the class
      * @return the annotations for a field type
      */
     public ATypeElement getFieldType(
-            AClass classAnnos,
             String fieldName,
             AnnotatedTypeMirror lhsATM,
-            AnnotatedTypeFactory atypeFactory) {
+            AnnotatedTypeFactory atypeFactory,
+            @BinaryName String className,
+            String file,
+            @Nullable ClassSymbol classSymbol) {
+        AClass classAnnos = getClassAnnos(className, file, classSymbol);
         AField field = classAnnos.fields.getVivify(fieldName);
         field.setTypeMirror(lhsATM.getUnderlyingType());
         return field.type;
@@ -520,10 +526,10 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @BinaryName String className = enclosingClass.flatname.toString();
-        AClass classAnnos = getClassAnnos(className, file, enclosingClass);
 
         AnnotatedTypeMirror lhsATM = atypeFactory.getAnnotatedType(lhsTree);
-        ATypeElement fieldType = getFieldType(classAnnos, fieldName, lhsATM, atypeFactory);
+        ATypeElement fieldType =
+                getFieldType(fieldName, lhsATM, atypeFactory, className, file, enclosingClass);
 
         updateAnnotationSet(fieldType, TypeUseLocation.FIELD, rhsATM, lhsATM, file);
     }
