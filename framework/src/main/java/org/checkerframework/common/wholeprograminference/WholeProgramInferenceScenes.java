@@ -260,13 +260,14 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
-     * Get the pre- or postcondition annotations for a field.
+     * Returns the pre- or postcondition annotations for a field.
      *
      * @param preOrPost whether to get the precondition or postcondition
      * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
+     * @return the pre- or postcondition annotations for a field
      */
     public ATypeElement getPreOrPostconditionsForField(
             Analysis.BeforeOrAfter preOrPost,
@@ -287,12 +288,13 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
-     * Get the precondition annotations for a field.
+     * Returns the precondition annotations for a field.
      *
      * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
+     * @return the precondition annotations for a field
      */
     public ATypeElement getPreconditionsForField(
             AMethod methodAnnos,
@@ -304,12 +306,13 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     }
 
     /**
-     * Get the postcondition annotations for a field.
+     * Returns the postcondition annotations for a field.
      *
      * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
+     * @return the postcondition annotations for a field
      */
     public ATypeElement getPostconditionsForField(
             AMethod methodAnnos,
