@@ -1,6 +1,7 @@
 package org.checkerframework.framework.stub;
 
 import com.github.javaparser.ParseResult;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.MemberValuePair;
@@ -59,9 +60,8 @@ public class JavaStubifier {
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
-        // DO NOT COMMIT THIS CHANGE!
-        // strategy.getParserConfiguration()
-        //         .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_11);
+        strategy.getParserConfiguration()
+                .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_11);
         ProjectRoot projectRoot = strategy.collect(root);
 
         projectRoot
