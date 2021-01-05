@@ -190,6 +190,12 @@ public class JavaExpressionParseUtil {
         /** The type utilities. */
         private final Types types;
 
+        /**
+         * Create a new ExpressionToJavaExpressionVisitor.
+         *
+         * @param path path to the expression
+         * @param env the processing environment
+         */
         ExpressionToJavaExpressionVisitor(TreePath path, ProcessingEnvironment env) {
             this.path = path;
             this.env = env;

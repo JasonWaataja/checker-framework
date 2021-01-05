@@ -256,6 +256,15 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
     }
 
+    /**
+     * Get the pre- or postcondition annotations for a field.
+     *
+     * @param preOrPost whether to get the precondition or postcondition
+     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param fieldElement the field
+     * @param fieldDeclType the field's declared type
+     * @param atypeFactory the type factory
+     */
     public AnnotatedTypeMirror getPreOrPostconditionsForField(
             Analysis.BeforeOrAfter preOrPost,
             CallableDeclarationAnnos methodAnnos,
@@ -274,6 +283,14 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         }
     }
 
+    /**
+     * Get the precondition annotations for a field.
+     *
+     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param fieldElement the field
+     * @param fieldDeclType the field's declared type
+     * @param atypeFactory the type factory
+     */
     public AnnotatedTypeMirror getPreconditionsForField(
             CallableDeclarationAnnos methodAnnos,
             VariableElement fieldElement,
@@ -282,6 +299,14 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return methodAnnos.getPreconditionsForField(fieldElement, fieldDeclType, atypeFactory);
     }
 
+    /**
+     * Get the postcondition annotations for a field.
+     *
+     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param fieldElement the field
+     * @param fieldDeclType the field's declared type
+     * @param atypeFactory the type factory
+     */
     public AnnotatedTypeMirror getPostconditionsForField(
             CallableDeclarationAnnos methodAnnos,
             VariableElement fieldElement,
