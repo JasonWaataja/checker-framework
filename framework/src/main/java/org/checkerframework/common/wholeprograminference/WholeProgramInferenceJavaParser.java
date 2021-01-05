@@ -256,6 +256,40 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
     }
 
+    public AnnotatedTypeMirror getPreOrPostconditionsForField(
+            Analysis.BeforeOrAfter preOrPost,
+            CallableDeclarationAnnos methodAnnos,
+            VariableElement fieldElement,
+            AnnotatedTypeMirror fieldDeclType,
+            AnnotatedTypeFactory atypeFactory) {
+        switch (preOrPost) {
+            case BEFORE:
+                return getPreconditionsForField(
+                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+            case AFTER:
+                return getPostconditionsForField(
+                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+            default:
+                throw new BugInCF("Unexpected " + preOrPost);
+        }
+    }
+
+    public AnnotatedTypeMirror getPreconditionsForField(
+            CallableDeclarationAnnos methodAnnos,
+            VariableElement fieldElement,
+            AnnotatedTypeMirror fieldDeclType,
+            AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.getPreconditionsForField(fieldElement, fieldDeclType, atypeFactory);
+    }
+
+    public AnnotatedTypeMirror getPostconditionsForField(
+            CallableDeclarationAnnos methodAnnos,
+            VariableElement fieldElement,
+            AnnotatedTypeMirror fieldDeclType,
+            AnnotatedTypeFactory atypeFactory) {
+        return methodAnnos.getPostconditionsForField(fieldElement, fieldDeclType, atypeFactory);
+    }
+
     @Override
     public void updateFromObjectCreation(
             ObjectCreationNode objectCreationNode,
@@ -377,21 +411,10 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
                 // This field is not in the store. Add its declared type.
                 inferredType = atypeFactory.getAnnotatedType(fieldElement);
             }
-            AnnotatedTypeMirror preOrPostConditionAnnos;
-            switch (preOrPost) {
-                case BEFORE:
-                    preOrPostConditionAnnos =
-                            methodAnnos.getPreconditionsForField(
-                                    fieldElement, fieldDeclType, atypeFactory);
-                    break;
-                case AFTER:
-                    preOrPostConditionAnnos =
-                            methodAnnos.getPostconditionsForField(
-                                    fieldElement, fieldDeclType, atypeFactory);
-                    break;
-                default:
-                    throw new BugInCF("Unexpected " + preOrPost);
-            }
+
+            AnnotatedTypeMirror preOrPostConditionAnnos =
+                    getPreOrPostconditionsForField(
+                            preOrPost, methodAnnos, fieldElement, fieldDeclType, atypeFactory);
 
             String file = getFileForElement(methodElt);
             updateAnnotationSet(

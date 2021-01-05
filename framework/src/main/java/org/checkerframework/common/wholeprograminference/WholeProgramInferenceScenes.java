@@ -367,35 +367,32 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                 // This field is not in the store. Add its declared type.
                 inferredType = atypeFactory.getAnnotatedType(fieldElement);
             }
-            AField afield = vivifyAndAddTypeMirrorToContract(methodAnnos, preOrPost, fieldElement);
+
+            AField preOrPostConditionAnnos;
+            TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
+            switch (preOrPost) {
+                case BEFORE:
+                    preOrPostConditionAnnos =
+                            methodAnnos.vivifyAndAddTypeMirrorToPrecondition(
+                                    fieldElement, typeMirror);
+                    break;
+                case AFTER:
+                    preOrPostConditionAnnos =
+                            methodAnnos.vivifyAndAddTypeMirrorToPostcondition(
+                                    fieldElement, typeMirror);
+                    break;
+                default:
+                    throw new BugInCF("Unexpected " + preOrPost);
+            }
+
             String file = getFileForElement(methodElt);
             updateAnnotationSet(
-                    afield.type, TypeUseLocation.FIELD, inferredType, fieldDeclType, file, false);
-        }
-    }
-
-    /**
-     * Obtain the AField for an expression in scope at method entry or exit.
-     *
-     * <p>This is a helper method for {@link #updateContracts}.
-     *
-     * @param methodAnnos AFU representation of a method
-     * @param preOrPost whether to call {@code vivifyAndAddTypeMirrorToPrecondition} or {@code
-     *     vivifyAndAddTypeMirrorToPostcondition}
-     * @param fieldElement the field
-     * @return an AField representing the expression
-     */
-    private AField vivifyAndAddTypeMirrorToContract(
-            AMethod methodAnnos, Analysis.BeforeOrAfter preOrPost, VariableElement fieldElement) {
-        TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
-
-        switch (preOrPost) {
-            case BEFORE:
-                return methodAnnos.vivifyAndAddTypeMirrorToPrecondition(fieldElement, typeMirror);
-            case AFTER:
-                return methodAnnos.vivifyAndAddTypeMirrorToPostcondition(fieldElement, typeMirror);
-            default:
-                throw new BugInCF("Unexpected " + preOrPost);
+                    preOrPostConditionAnnos.type,
+                    TypeUseLocation.FIELD,
+                    inferredType,
+                    fieldDeclType,
+                    file,
+                    false);
         }
     }
 
