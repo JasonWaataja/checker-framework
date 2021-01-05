@@ -266,7 +266,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @param preOrPost whether to get the precondition or postcondition
      * @param methodElement the method
      * @param fieldElement the field
-     * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the pre- or postcondition annotations for a field
      */
@@ -274,27 +273,22 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
             Analysis.BeforeOrAfter preOrPost,
             ExecutableElement methodElement,
             VariableElement fieldElement,
-            AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
         switch (preOrPost) {
             case BEFORE:
-                return getPreconditionsForField(
-                        methodElement, fieldElement, fieldDeclType, atypeFactory);
+                return getPreconditionsForField(methodElement, fieldElement, atypeFactory);
             case AFTER:
-                return getPostconditionsForField(
-                        methodElement, fieldElement, fieldDeclType, atypeFactory);
+                return getPostconditionsForField(methodElement, fieldElement, atypeFactory);
             default:
                 throw new BugInCF("Unexpected " + preOrPost);
         }
     }
 
-    // TODO: Can I avoid passing in fieldDeclType?
     /**
      * Returns the precondition annotations for a field.
      *
      * @param methodElement the method
      * @param fieldElement the field
-     * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the precondition annotations for a field
      */
@@ -302,10 +296,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     private ATypeElement getPreconditionsForField(
             ExecutableElement methodElement,
             VariableElement fieldElement,
-            AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
-        TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
         AMethod methodAnnos = getMethodAnnos(methodElement);
+        TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
         return methodAnnos.vivifyAndAddTypeMirrorToPrecondition(fieldElement, typeMirror).type;
     }
 
@@ -314,7 +307,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      *
      * @param methodElement the method
      * @param fieldElement the field
-     * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the postcondition annotations for a field
      */
@@ -322,10 +314,9 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
     private ATypeElement getPostconditionsForField(
             ExecutableElement methodElement,
             VariableElement fieldElement,
-            AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
-        TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
         AMethod methodAnnos = getMethodAnnos(methodElement);
+        TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
         return methodAnnos.vivifyAndAddTypeMirrorToPostcondition(fieldElement, typeMirror).type;
     }
 
@@ -438,7 +429,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
             ATypeElement preOrPostConditionAnnos =
                     getPreOrPostconditionsForField(
-                            preOrPost, methodElt, fieldElement, fieldDeclType, atypeFactory);
+                            preOrPost, methodElt, fieldElement, atypeFactory);
 
             String file = getFileForElement(methodElt);
             updateAnnotationSet(
