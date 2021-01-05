@@ -243,7 +243,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
      * @param atypeFactory the annotated type factory
      * @return the annotations for a field type
      */
-    public AnnotatedTypeMirror getFieldType(
+    private AnnotatedTypeMirror getFieldType(
             Element element,
             String fieldName,
             AnnotatedTypeMirror lhsATM,
@@ -256,65 +256,69 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
         return classAnnos.fields.get(fieldName).getType(lhsATM, atypeFactory);
     }
 
+    // TODO: Can I avoid passing in fieldDeclType?
     /**
      * Returns the pre- or postcondition annotations for a field.
      *
      * @param preOrPost whether to get the precondition or postcondition
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the pre- or postcondition annotations for a field
      */
-    public AnnotatedTypeMirror getPreOrPostconditionsForField(
+    private AnnotatedTypeMirror getPreOrPostconditionsForField(
             Analysis.BeforeOrAfter preOrPost,
-            CallableDeclarationAnnos methodAnnos,
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
         switch (preOrPost) {
             case BEFORE:
                 return getPreconditionsForField(
-                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                        methodElement, fieldElement, fieldDeclType, atypeFactory);
             case AFTER:
                 return getPostconditionsForField(
-                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                        methodElement, fieldElement, fieldDeclType, atypeFactory);
             default:
                 throw new BugInCF("Unexpected " + preOrPost);
         }
     }
 
+    // TODO: Can I avoid passing in fieldDeclType?
     /**
      * Returns the precondition annotations for a field.
      *
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the precondition annotations for a field
      */
-    public AnnotatedTypeMirror getPreconditionsForField(
-            CallableDeclarationAnnos methodAnnos,
+    private AnnotatedTypeMirror getPreconditionsForField(
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElement);
         return methodAnnos.getPreconditionsForField(fieldElement, fieldDeclType, atypeFactory);
     }
 
     /**
      * Returns the postcondition annotations for a field.
      *
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the postcondition annotations for a field
      */
-    public AnnotatedTypeMirror getPostconditionsForField(
-            CallableDeclarationAnnos methodAnnos,
+    private AnnotatedTypeMirror getPostconditionsForField(
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
+        CallableDeclarationAnnos methodAnnos = getMethodAnnos(methodElement);
         return methodAnnos.getPostconditionsForField(fieldElement, fieldDeclType, atypeFactory);
     }
 
@@ -442,7 +446,7 @@ public class WholeProgramInferenceJavaParser implements WholeProgramInference {
 
             AnnotatedTypeMirror preOrPostConditionAnnos =
                     getPreOrPostconditionsForField(
-                            preOrPost, methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                            preOrPost, methodElt, fieldElement, fieldDeclType, atypeFactory);
 
             String file = getFileForElement(methodElt);
             updateAnnotationSet(

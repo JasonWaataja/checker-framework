@@ -244,7 +244,8 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * @param atypeFactory the annotated type factory
      * @return the annotations for a field type
      */
-    public ATypeElement getFieldType(
+    @SuppressWarnings("UnusedVariable")
+    private ATypeElement getFieldType(
             Element element,
             String fieldName,
             AnnotatedTypeMirror lhsATM,
@@ -263,63 +264,68 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
      * Returns the pre- or postcondition annotations for a field.
      *
      * @param preOrPost whether to get the precondition or postcondition
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the pre- or postcondition annotations for a field
      */
-    public ATypeElement getPreOrPostconditionsForField(
+    private ATypeElement getPreOrPostconditionsForField(
             Analysis.BeforeOrAfter preOrPost,
-            AMethod methodAnnos,
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
         switch (preOrPost) {
             case BEFORE:
                 return getPreconditionsForField(
-                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                        methodElement, fieldElement, fieldDeclType, atypeFactory);
             case AFTER:
                 return getPostconditionsForField(
-                        methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                        methodElement, fieldElement, fieldDeclType, atypeFactory);
             default:
                 throw new BugInCF("Unexpected " + preOrPost);
         }
     }
 
+    // TODO: Can I avoid passing in fieldDeclType?
     /**
      * Returns the precondition annotations for a field.
      *
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the precondition annotations for a field
      */
-    public ATypeElement getPreconditionsForField(
-            AMethod methodAnnos,
+    @SuppressWarnings("UnusedVariable")
+    private ATypeElement getPreconditionsForField(
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
         TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
+        AMethod methodAnnos = getMethodAnnos(methodElement);
         return methodAnnos.vivifyAndAddTypeMirrorToPrecondition(fieldElement, typeMirror).type;
     }
 
     /**
      * Returns the postcondition annotations for a field.
      *
-     * @param methodAnnos annotations on the method -- NEED TO PASS AN ELEMENT INSTEAD
+     * @param methodElement the method
      * @param fieldElement the field
      * @param fieldDeclType the field's declared type
      * @param atypeFactory the type factory
      * @return the postcondition annotations for a field
      */
-    public ATypeElement getPostconditionsForField(
-            AMethod methodAnnos,
+    @SuppressWarnings("UnusedVariable")
+    private ATypeElement getPostconditionsForField(
+            ExecutableElement methodElement,
             VariableElement fieldElement,
             AnnotatedTypeMirror fieldDeclType,
             AnnotatedTypeFactory atypeFactory) {
         TypeMirror typeMirror = TypeAnnotationUtils.unannotatedType(fieldElement.asType());
+        AMethod methodAnnos = getMethodAnnos(methodElement);
         return methodAnnos.vivifyAndAddTypeMirrorToPostcondition(fieldElement, typeMirror).type;
     }
 
@@ -402,8 +408,6 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
                     preOrPost, methodElt, atypeFactory.getClass().getSimpleName());
         }
 
-        AMethod methodAnnos = getMethodAnnos(methodElt);
-
         // TODO: Probably move some part of this into the AnnotatedTypeFactory.
 
         // This code only handles fields of "this", for now.  In the future, extend it to other
@@ -434,7 +438,7 @@ public class WholeProgramInferenceScenes implements WholeProgramInference {
 
             ATypeElement preOrPostConditionAnnos =
                     getPreOrPostconditionsForField(
-                            preOrPost, methodAnnos, fieldElement, fieldDeclType, atypeFactory);
+                            preOrPost, methodElt, fieldElement, fieldDeclType, atypeFactory);
 
             String file = getFileForElement(methodElt);
             updateAnnotationSet(
