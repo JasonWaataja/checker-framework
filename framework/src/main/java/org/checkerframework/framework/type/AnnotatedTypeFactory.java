@@ -4,11 +4,7 @@ package org.checkerframework.framework.type;
 // Try to avoid using non-@jdk.Exported classes.
 
 import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.stmt.*;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
