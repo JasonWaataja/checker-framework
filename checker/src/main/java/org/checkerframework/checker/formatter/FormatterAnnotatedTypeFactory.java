@@ -14,6 +14,7 @@ import org.checkerframework.checker.formatter.qual.UnknownFormat;
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.wholeprograminference.WholeProgramInferenceJavaParser;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.MostlyNoElementQualifierHierarchy;
@@ -99,6 +100,21 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
+     * {@inheritDoc}
+     *
+     * <p>If a method is annotated with {@code @FormatMethod}, remove any {@code @Format} annotation
+     * from its first argument.
+     */
+    @Override
+    public void prepareMethodForWriting(
+            WholeProgramInferenceJavaParser.CallableDeclarationAnnos methodAnnos) {
+        if (hasFormatMethodAnno(methodAnnos)) {
+            AnnotatedTypeMirror atm = methodAnnos.parameterTypes.get(0);
+            atm.removeAnnotation(org.checkerframework.checker.formatter.qual.Format.class);
+        }
+    }
+
+    /**
      * Returns true if the method has a {@code @FormatMethod} annotation.
      *
      * @param methodAnnos method annotations
@@ -113,6 +129,26 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             }
         }
         return false;
+    }
+
+    /**
+     * Returns true if the method has a {@code @FormatMethod} annotation.
+     *
+     * @param methodAnnos method annotations
+     * @return true if the method has a {@code @FormatMethod} annotation
+     */
+    private boolean hasFormatMethodAnno(
+            WholeProgramInferenceJavaParser.CallableDeclarationAnnos methodAnnos) {
+        return methodAnnos.declarationAnnotations != null
+                && (AnnotationUtils.containsSameByClass(
+                                methodAnnos.declarationAnnotations,
+                                org.checkerframework.checker.formatter.qual.FormatMethod.class)
+                        || AnnotationUtils.containsSameByName(
+                                methodAnnos.declarationAnnotations,
+                                "com.google.errorprone.annotations.FormatMethod"))
+                && methodAnnos.parameterTypes != null
+                && !methodAnnos.parameterTypes.isEmpty()
+                && methodAnnos.parameterTypes.get(0) != null;
     }
 
     /** The tree annotator for the Format String Checker. */

@@ -218,5 +218,11 @@ public interface WholeProgramInference {
          * Annotation File Utilities project contains code for reading and writing .jaif files.
          */
         JAIF(),
+
+        /**
+         * Output the results of whole-program inference as an ajava file that can be read in using
+         * the -Aajava option.
+         */
+        AJAVA(),
     }
 }

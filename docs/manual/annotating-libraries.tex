@@ -780,6 +780,58 @@ the stub file, because it is not defined in class \<android.nfc.NfcAdapter>
 in the version of the library you are using.
 
 
+\sectionAndLabel{Ajava Files}{ajava-files}
+
+Like stub files, ajava files store annotations that can be read by the
+Checker Framework.  Ajava files are mostly used as
+the output of whole program inference and not for annotating libraries.
+
+
+\subsectionAndLabel{Using an Ajava File}{ajava-using}
+
+The \code{-Aajava} command argument works like \code{-Astubs} (see
+Section~\ref{stub-using}). It takes a colon-separated list of
+files and directories containing ajava files, which end in the \code{.ajava}
+extension.
+
+For example:
+
+\begin{myxsmall}
+\begin{Verbatim}
+  javac -processor org.checkerframework.checker.interning.InterningChecker \
+    -Aajava=path/to/String.astub:stubs MyFile.java MyOtherFile.java ...
+\end{Verbatim}
+\end{myxsmall}
+
+
+\subsectionAndLabel{Contents of an Ajava file}{ajava-contents}
+
+An ajava file must contain valid Java source code. Annotations in that code are
+read. When reading an ajava file for a file that also exists as source code, the
+ajava file and source file must match exactly with the following exceptions:
+\begin{itemize}
+  \item The two may differ in annotations.
+  \item The ajava file may have explicit receivers where the source file
+    doesn't. If a source file has a method declaration \code{myMethod()},
+    the ajava file might contain \code{myMethod(MyClass this)}.
+  \item The ajava file may have explicit type bounds that are implicit in the source file.
+    If a source file has a type argument \<?>,
+    the ajava file might contain \code{? extends Object}.
+\end{itemize}
+
+
+\subsectionAndLabel{Annotations in Ajava Files}{ajava-annotations}
+
+Annotations on method parameters, method returns, and fields are read (this
+is like stub files).
+If there's an annotation in both an ajava file and
+a source file, the greatest lower bound is used (as with the
+\code{-AmergeStubsWithSource} option).
+
+Ajava files may contain annotations within anonymous classes and local classes.
+Annotations in such locations are ignored in stub files.x
+
+
 \sectionAndLabel{Troubleshooting/debugging annotated libraries}{libraries-troubleshooting}
 
 Sometimes, it may seem that a checker is treating a library as unannotated

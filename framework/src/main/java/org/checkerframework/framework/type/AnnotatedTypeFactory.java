@@ -3,6 +3,12 @@ package org.checkerframework.framework.type;
 // The imports from com.sun are all @jdk.Exported and therefore somewhat safe to use.
 // Try to avoid using non-@jdk.Exported classes.
 
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.*;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.stmt.*;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
@@ -26,6 +32,8 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import java.io.File;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -73,8 +81,12 @@ import org.checkerframework.common.reflection.MethodValAnnotatedTypeFactory;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.common.reflection.ReflectionResolver;
 import org.checkerframework.common.wholeprograminference.WholeProgramInference;
+import org.checkerframework.common.wholeprograminference.WholeProgramInferenceJavaParser;
 import org.checkerframework.common.wholeprograminference.WholeProgramInferenceScenes;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.framework.ajava.ExpectedTreesVisitor;
+import org.checkerframework.framework.ajava.JavaParserUtils;
+import org.checkerframework.framework.ajava.JointVisitorWithDefaultAction;
 import org.checkerframework.framework.qual.FieldInvariant;
 import org.checkerframework.framework.qual.FromStubFile;
 import org.checkerframework.framework.qual.HasQualifierParameter;
@@ -232,6 +244,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /** Parses stub files and stores annotations from stub files. */
     public final AnnotationFileElementTypes stubTypes;
+
+    /** Parses ajava files and stores annotations from ajava files. */
+    public final AnnotationFileElementTypes ajavaTypes;
+
+    /**
+     * If processing a file, stores any annotations read from an ajava file for that class. Unlike
+     * {@code ajavaTypes}, which only stores annotations on public elements, this stores annotations
+     * on all element locations such as in anonymous class bodies.
+     */
+    public @Nullable AnnotationFileElementTypes currentFileAjavaTypes;
 
     /**
      * A cache used to store elements whose declaration annotations have already been stored by
@@ -434,6 +456,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.supportedQuals = new HashSet<>();
         this.supportedQualNames = new HashSet<>();
         this.stubTypes = new AnnotationFileElementTypes(this);
+        this.ajavaTypes = new AnnotationFileElementTypes(this);
+        this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new HashMap<>();
 
@@ -480,13 +504,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 case "jaifs":
                     wpiOutputFormat = WholeProgramInference.OutputFormat.JAIF;
                     break;
+                case "ajava":
+                    wpiOutputFormat = WholeProgramInference.OutputFormat.AJAVA;
+                    break;
                 default:
                     throw new UserError(
                             "Bad argument -Ainfer="
                                     + inferArg
                                     + " should be one of: -Ainfer=jaifs, -Ainfer=stubs");
             }
-            wholeProgramInference = new WholeProgramInferenceScenes(this);
+            if (checker.getOption("infer").equals("ajava")) {
+                wholeProgramInference = new WholeProgramInferenceJavaParser(this);
+            } else {
+                wholeProgramInference = new WholeProgramInferenceScenes(this);
+            }
         } else {
             wholeProgramInference = null;
         }
@@ -665,6 +696,60 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param root the new compilation unit to use
      */
     public void setRoot(@Nullable CompilationUnitTree root) {
+        setRoot(root, /*shouldCheckVisitor=*/ true);
+    }
+
+    /**
+     * Set the CompilationUnitTree that should be used.
+     *
+     * @param root the new compilation unit to use
+     * @param shouldCheckVisitor true if the visitor that verifies the javac tree can be visited
+     *     with its corresponding JavaParser AST should be run. The check only occurs if
+     *     -AcheckJavaParserVisitor is passed on the command line.
+     */
+    @SuppressWarnings("CatchAndPrintStackTrace")
+    public void setRoot(@Nullable CompilationUnitTree root, boolean shouldCheckVisitor) {
+        if (root != null && wholeProgramInference instanceof WholeProgramInferenceJavaParser) {
+            for (Tree typeDecl : root.getTypeDecls()) {
+                if (typeDecl.getKind() != Kind.CLASS) {
+                    continue;
+                }
+
+                ClassTree classTree = (ClassTree) typeDecl;
+                WholeProgramInferenceJavaParser wpiJavaParser =
+                        (WholeProgramInferenceJavaParser) wholeProgramInference;
+                wpiJavaParser.addClassTree(classTree);
+            }
+        }
+
+        if (shouldCheckVisitor && checker.hasOption("checkJavaParserVisitor") && root != null) {
+            Map<Tree, Node> treePairs = new HashMap<>();
+            try {
+                java.io.InputStream reader = root.getSourceFile().openInputStream();
+                com.github.javaparser.ast.CompilationUnit javaParserRoot =
+                        StaticJavaParser.parse(reader);
+                reader.close();
+                JavaParserUtils.concatenateAddedStringLiterals(javaParserRoot);
+                new JointVisitorWithDefaultAction() {
+                    @Override
+                    public void defaultAction(Tree javacTree, Node javaParserNode) {
+                        treePairs.put(javacTree, javaParserNode);
+                    }
+                }.visitCompilationUnit(root, javaParserRoot);
+                ExpectedTreesVisitor expectedTreesVisitor = new ExpectedTreesVisitor();
+                expectedTreesVisitor.visitCompilationUnit(root, null);
+                for (Tree expected : expectedTreesVisitor.getTrees()) {
+                    if (!treePairs.containsKey(expected)) {
+                        throw new BugInCF(
+                                "Javac tree not matched to JavaParser node: %s, in file: %s",
+                                expected, root.getSourceFile().getName());
+                    }
+                }
+            } catch (IOException e) {
+                throw new BugInCF("Error reading Java source file", e);
+            }
+        }
+
         this.root = root;
         // Do not clear here. Only the primary checker should clear this cache.
         // treePathCache.clear();
@@ -682,6 +767,45 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // There is no need to clear the following cache, it is limited by cache size and it
             // contents won't change between compilation units.
             // elementCache.clear();
+        }
+
+        if (root != null && checker.hasOption("ajava")) {
+            // Search for an ajava file with annotations for the current source file and the current
+            // checker. It will be in the directory specified by the "ajava" option in a
+            // subdirectory corresponding to this file's package. For example, a file in package
+            // a.b would be in a subdirectory a/b. The filename is
+            // ClassName-checker.qualified.name.ajava. If such a file exists, read its detailed
+            // annotation data, including annotations on private elements.
+            String qualifiedName =
+                    root.getPackageName() != null
+                            ? TreeUtils.nameExpressionToString(root.getPackageName())
+                            : "";
+            // The method getName returns a path, extract the basename.
+            String className = root.getSourceFile().getName();
+            int lastSeparator = className.lastIndexOf(File.separator);
+            if (lastSeparator != -1) {
+                className = className.substring(lastSeparator + 1);
+            }
+
+            qualifiedName += "." + className;
+            // Strip .java extension.
+            if (qualifiedName.endsWith(".java")) {
+                qualifiedName =
+                        qualifiedName.substring(0, qualifiedName.length() - ".java".length());
+            }
+
+            String ajavaPath =
+                    checker.getOption("ajava")
+                            + File.separator
+                            + qualifiedName.replaceAll("\\.", "/");
+            ajavaPath += "-" + checker.getClass().getCanonicalName() + ".ajava";
+            File ajavaFile = new File(ajavaPath);
+            if (ajavaFile.exists()) {
+                currentFileAjavaTypes = new AnnotationFileElementTypes(this);
+                currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
+            }
+        } else {
+            currentFileAjavaTypes = null;
         }
     }
 
@@ -1211,18 +1335,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + elt);
         }
 
+        type = mergeStubsIntoType(type, elt, ajavaTypes);
+        if (currentFileAjavaTypes != null) {
+            type = mergeStubsIntoType(type, elt, currentFileAjavaTypes);
+        }
+
         if (checker.hasOption("mergeStubsWithSource")) {
             if (debugStubParser) {
                 System.out.printf("fromElement: mergeStubsIntoType(%s, %s)", type, elt);
             }
-            type = mergeStubsIntoType(type, elt);
+            type = mergeStubsIntoType(type, elt, stubTypes);
             if (debugStubParser) {
                 System.out.printf(" => %s%n", type);
             }
         }
         // Caching is disabled if stub files are being parsed, because calls to this
         // method before the stub files are fully read can return incorrect results.
-        if (shouldCache && !stubTypes.isParsing()) {
+        if (shouldCache
+                && !stubTypes.isParsing()
+                && !ajavaTypes.isParsing()
+                && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
             elementCache.put(elt, type.deepCopy());
         }
         return type;
@@ -1259,11 +1391,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         AnnotatedTypeMirror result = TypeFromTree.fromMember(this, tree);
 
+        result = mergeStubsIntoType(result, tree, ajavaTypes);
+        if (currentFileAjavaTypes != null) {
+            result = mergeStubsIntoType(result, tree, currentFileAjavaTypes);
+        }
+
         if (checker.hasOption("mergeStubsWithSource")) {
             if (debugStubParser) {
                 System.out.printf("fromClass: mergeStubsIntoType(%s, %s)", result, tree);
             }
-            result = mergeStubsIntoType(result, tree);
+            result = mergeStubsIntoType(result, tree, stubTypes);
             if (debugStubParser) {
                 System.out.printf(" => %s%n", result);
             }
@@ -1282,11 +1419,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param type the type to apply annotation file types to
      * @param tree the tree from which to read annotation file types
+     * @param source storage for current annotation file annotations
      * @return the given type, side-effected to add the annotation file types
      */
-    private AnnotatedTypeMirror mergeStubsIntoType(@Nullable AnnotatedTypeMirror type, Tree tree) {
+    private AnnotatedTypeMirror mergeStubsIntoType(
+            @Nullable AnnotatedTypeMirror type, Tree tree, AnnotationFileElementTypes source) {
         Element elt = TreeUtils.elementFromTree(tree);
-        return mergeStubsIntoType(type, elt);
+        return mergeStubsIntoType(type, elt, source);
     }
 
     /**
@@ -1295,11 +1434,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param type the type to apply stub types to
      * @param elt the element from which to read stub types
+     * @param source storage for current annotation file annotations
      * @return the type, side-effected to add the stub types
      */
     protected AnnotatedTypeMirror mergeStubsIntoType(
-            @Nullable AnnotatedTypeMirror type, Element elt) {
-        AnnotatedTypeMirror stubType = stubTypes.getAnnotatedTypeMirror(elt);
+            @Nullable AnnotatedTypeMirror type, Element elt, AnnotationFileElementTypes source) {
+        AnnotatedTypeMirror stubType = source.getAnnotatedTypeMirror(elt);
         if (stubType == null) {
             return type;
         }
@@ -3390,6 +3530,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected void parseStubFiles() {
         stubTypes.parseStubFiles();
+        ajavaTypes.parseAjavaFiles();
     }
 
     /**
@@ -3556,6 +3697,34 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
+        if (!ajavaTypes.isParsing()) {
+
+            // Retrieving annotations from ajava files.
+            Set<AnnotationMirror> ajavaAnnos = ajavaTypes.getDeclAnnotation(elt);
+            results.addAll(ajavaAnnos);
+
+            if (elt.getKind() == ElementKind.METHOD) {
+                // Retrieve the annotations from the overridden method's element.
+                inheritOverriddenDeclAnnos((ExecutableElement) elt, results);
+            } else if (ElementUtils.isTypeDeclaration(elt)) {
+                inheritOverriddenDeclAnnosFromTypeDecl(elt.asType(), results);
+            }
+        }
+
+        if (currentFileAjavaTypes != null && !ajavaTypes.isParsing()) {
+
+            // Retrieving annotations from current ajava file.
+            Set<AnnotationMirror> ajavaAnnos = currentFileAjavaTypes.getDeclAnnotation(elt);
+            results.addAll(ajavaAnnos);
+
+            if (elt.getKind() == ElementKind.METHOD) {
+                // Retrieve the annotations from the overridden method's element.
+                inheritOverriddenDeclAnnos((ExecutableElement) elt, results);
+            } else if (ElementUtils.isTypeDeclaration(elt)) {
+                inheritOverriddenDeclAnnosFromTypeDecl(elt.asType(), results);
+            }
+        }
+
         // If parsing stub files, return the annotations in the element.
         if (!stubTypes.isParsing()) {
 
@@ -3569,7 +3738,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             } else if (ElementUtils.isTypeDeclaration(elt)) {
                 inheritOverriddenDeclAnnosFromTypeDecl(elt.asType(), results);
             }
+        }
 
+        if (!stubTypes.isParsing() && !ajavaTypes.isParsing()) {
             // Add the element and its annotations to the cache.
             cacheDeclAnnos.put(elt, results);
         }
@@ -4646,6 +4817,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param methodAnnos the method or constructor annotations to modify
      */
     public void prepareMethodForWriting(AMethod methodAnnos) {
+        // This implementation does nothing.
+    }
+
+    /**
+     * Side-effects the method or constructor annotations to make any desired changes before writing
+     * to an ajava file.
+     *
+     * @param methodAnnos the method or constructor annotations to modify
+     */
+    public void prepareMethodForWriting(
+            WholeProgramInferenceJavaParser.CallableDeclarationAnnos methodAnnos) {
         // This implementation does nothing.
     }
 

@@ -1,5 +1,6 @@
 package org.checkerframework.framework.stub;
 
+import com.sun.source.tree.CompilationUnitTree;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -36,7 +37,10 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
 
-/** Holds information about types parsed from annotation files (stub files). */
+/**
+ * Holds information about types parsed from annotation files (stub files or ajava files). When
+ * using an ajava file, only holds information on public elements as with stub files.
+ */
 public class AnnotationFileElementTypes {
     /** Annotations from annotation files (but not from annotated JDK files). */
     private final AnnotationFileAnnotations annotationFileAnnos;
@@ -176,7 +180,47 @@ public class AnnotationFileElementTypes {
             Collections.addAll(allAnnotationFiles, stubsOption.split(File.pathSeparator));
         }
 
-        parseAnnotationFiles(allAnnotationFiles);
+        parseAnnotationFiles(allAnnotationFiles, AnnotationFileUtil.AnnotationFileType.STUB);
+        parsing = false;
+    }
+
+    /** Parses the ajava files passed through the -Aajava option. */
+    public void parseAjavaFiles() {
+        parsing = true;
+        // TODO: Error if this is called more than once?
+        SourceChecker checker = factory.getContext().getChecker();
+        List<String> ajavaFiles = new ArrayList<>();
+        String ajavaOption = checker.getOption("ajava");
+        if (ajavaOption != null) {
+            Collections.addAll(ajavaFiles, ajavaOption.split(File.pathSeparator));
+        }
+
+        parseAnnotationFiles(ajavaFiles, AnnotationFileUtil.AnnotationFileType.AJAVA);
+        parsing = false;
+    }
+
+    /**
+     * Parses the ajava file at {@code ajavaPath} assuming {@code root} represents the compilation
+     * unit of that file. Uses {@code root} to get information from javac on specific elements of
+     * {@code ajavaPath}, enabling storage of more detailed annotation information than with just
+     * the ajava file.
+     *
+     * @param ajavaPath path to an ajava file
+     * @param root javac tree for the compilation unit stored in {@code ajavaFile}
+     */
+    public void parseAjavaFileWithTree(String ajavaPath, CompilationUnitTree root) {
+        parsing = true;
+        SourceChecker checker = factory.getContext().getChecker();
+        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        InputStream in;
+        try {
+            in = new FileInputStream(ajavaPath);
+            AnnotationFileParser.parseAjavaFile(
+                    ajavaPath, in, root, factory, processingEnv, annotationFileAnnos);
+        } catch (IOException e) {
+            checker.message(Kind.NOTE, "Could not read ajava file: " + ajavaPath);
+        }
+
         parsing = false;
     }
 
@@ -186,15 +230,18 @@ public class AnnotationFileElementTypes {
      * files located in that directory (recursively).
      *
      * @param annotationFiles list of files and directories to parse
+     * @param fileType the file type of files to parse
      */
-    private void parseAnnotationFiles(List<String> annotationFiles) {
+    private void parseAnnotationFiles(
+            List<String> annotationFiles, AnnotationFileUtil.AnnotationFileType fileType) {
         SourceChecker checker = factory.getContext().getChecker();
         ProcessingEnvironment processingEnv = factory.getProcessingEnv();
         for (String path : annotationFiles) {
             // Special case when running in jtreg.
             String base = System.getProperty("test.src");
             String fullPath = (base == null) ? path : base + "/" + path;
-            List<AnnotationFileResource> allFiles = AnnotationFileUtil.allAnnotationFiles(fullPath);
+            List<AnnotationFileResource> allFiles =
+                    AnnotationFileUtil.allAnnotationFiles(fullPath, fileType);
             if (!allFiles.isEmpty()) {
                 for (AnnotationFileResource resource : allFiles) {
                     InputStream annotationFileStream;
