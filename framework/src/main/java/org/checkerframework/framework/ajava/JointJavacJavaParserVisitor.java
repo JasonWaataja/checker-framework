@@ -343,11 +343,9 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
                     assert javacIter.hasNext();
                     assert javacStatement.getKind() == Kind.VARIABLE;
                     javacStatement.accept(this, decl);
-                    javacIter.hasNext() = javacIter.hasNext();
                     javacStatement = javacIter.hasNext() ? javacIter.next() : null;
                 }
 
-                javaParserIter.hasNext() = javaParserIter.hasNext();
                 javaParserStatement = javaParserIter.hasNext() ? javaParserIter.next() : null;
                 continue;
             }
@@ -355,10 +353,7 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             assert javacIter.hasNext();
             assert javaParserIter.hasNext();
             javacStatement.accept(this, javaParserStatement);
-            javacIter.hasNext() = javacIter.hasNext();
             javacStatement = javacIter.hasNext() ? javacIter.next() : null;
-
-            javaParserIter.hasNext() = javaParserIter.hasNext();
             javaParserStatement = javaParserIter.hasNext() ? javaParserIter.next() : null;
         }
 
@@ -540,7 +535,6 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             if (javacIter.hasNext()
                     && isNoArgumentConstructor(javacMember)
                     && (!javaParserIter.hasNext() || !isNoArgumentConstructor(javaParserMember))) {
-                javacIter.hasNext() = javacIter.hasNext();
                 javacMember = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
             }
@@ -554,11 +548,9 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
                     assert javacIter.hasNext();
                     assert javacMember.getKind() == Kind.VARIABLE;
                     javacMember.accept(this, decl);
-                    javacIter.hasNext() = javacIter.hasNext();
                     javacMember = javacIter.hasNext() ? javacIter.next() : null;
                 }
 
-                javaParserIter.hasNext() = javaParserIter.hasNext();
                 javaParserMember = javaParserIter.hasNext() ? javaParserIter.next() : null;
                 continue;
             }
@@ -567,10 +559,7 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             assert javaParserIter.hasNext();
             javacMember.accept(this, javaParserMember);
 
-            javacIter.hasNext() = javacIter.hasNext();
             javacMember = javacIter.hasNext() ? javacIter.next() : null;
-
-            javaParserIter.hasNext() = javaParserIter.hasNext();
             javaParserMember = javaParserIter.hasNext() ? javaParserIter.next() : null;
         }
 
