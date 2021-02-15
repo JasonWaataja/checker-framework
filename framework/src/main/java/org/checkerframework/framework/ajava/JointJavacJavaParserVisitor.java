@@ -309,28 +309,26 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             Iterable<? extends StatementTree> javacStatements,
             Iterable<Statement> javaParserStatements) {
         Iterator<? extends StatementTree> javacIter = javacStatements.iterator();
-        boolean hasNextJavac = javacIter.hasNext();
-        StatementTree javacStatement = hasNextJavac ? javacIter.next() : null;
+        StatementTree javacStatement = javacIter.hasNext() ? javacIter.next() : null;
 
         Iterator<Statement> javaParserIter = javaParserStatements.iterator();
-        boolean hasNextJavaParser = javaParserIter.hasNext();
-        Statement javaParserStatement = hasNextJavaParser ? javaParserIter.next() : null;
+        Statement javaParserStatement = javaParserIter.hasNext() ? javaParserIter.next() : null;
 
-        while (hasNextJavac || hasNextJavaParser) {
+        while (javacIter.hasNext() || javaParserIter.hasNext()) {
             // Skip synthetic javac super() calls by checking if the JavaParser statement matches.
-            if (hasNextJavac
+            if (javacIter.hasNext()
                     && isDefaultSuperConstructorCall(javacStatement)
-                    && (!hasNextJavaParser
+                    && (!javaParserIter.hasNext()
                             || !isDefaultSuperConstructorCall(javaParserStatement))) {
-                hasNextJavac = javacIter.hasNext();
-                javacStatement = hasNextJavac ? javacIter.next() : null;
+                javacIter.hasNext() = javacIter.hasNext();
+                javacStatement = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
             }
 
             // In javac, a line like "int i = 0, j = 0" is expanded as two sibling VariableTree
             // instances. In javaParser this is one VariableDeclarationExpr with two nested
             // VariableDeclarators. Match the declarators with the VariableTrees.
-            if (hasNextJavaParser
+            if (javaParserIter.hasNext()
                     && javaParserStatement.isExpressionStmt()
                     && javaParserStatement
                             .asExpressionStmt()
@@ -342,30 +340,30 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
                                 .getExpression()
                                 .asVariableDeclarationExpr()
                                 .getVariables()) {
-                    assert hasNextJavac;
+                    assert javacIter.hasNext();
                     assert javacStatement.getKind() == Kind.VARIABLE;
                     javacStatement.accept(this, decl);
-                    hasNextJavac = javacIter.hasNext();
-                    javacStatement = hasNextJavac ? javacIter.next() : null;
+                    javacIter.hasNext() = javacIter.hasNext();
+                    javacStatement = javacIter.hasNext() ? javacIter.next() : null;
                 }
 
-                hasNextJavaParser = javaParserIter.hasNext();
-                javaParserStatement = hasNextJavaParser ? javaParserIter.next() : null;
+                javaParserIter.hasNext() = javaParserIter.hasNext();
+                javaParserStatement = javaParserIter.hasNext() ? javaParserIter.next() : null;
                 continue;
             }
 
-            assert hasNextJavac;
-            assert hasNextJavaParser;
+            assert javacIter.hasNext();
+            assert javaParserIter.hasNext();
             javacStatement.accept(this, javaParserStatement);
-            hasNextJavac = javacIter.hasNext();
-            javacStatement = hasNextJavac ? javacIter.next() : null;
+            javacIter.hasNext() = javacIter.hasNext();
+            javacStatement = javacIter.hasNext() ? javacIter.next() : null;
 
-            hasNextJavaParser = javaParserIter.hasNext();
-            javaParserStatement = hasNextJavaParser ? javaParserIter.next() : null;
+            javaParserIter.hasNext() = javaParserIter.hasNext();
+            javaParserStatement = javaParserIter.hasNext() ? javaParserIter.next() : null;
         }
 
-        assert !hasNextJavac;
-        assert !hasNextJavaParser;
+        assert !javacIter.hasNext();
+        assert !javaParserIter.hasNext();
     }
 
     /**
@@ -533,52 +531,51 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
     private void visitClassMembers(
             List<? extends Tree> javacMembers, List<BodyDeclaration<?>> javaParserMembers) {
         Iterator<? extends Tree> javacIter = javacMembers.iterator();
-        boolean hasNextJavac = javacIter.hasNext();
-        Tree javacMember = hasNextJavac ? javacIter.next() : null;
+        Tree javacMember = javacIter.hasNext() ? javacIter.next() : null;
         Iterator<BodyDeclaration<?>> javaParserIter = javaParserMembers.iterator();
-        boolean hasNextJavaParser = javaParserIter.hasNext();
-        BodyDeclaration<?> javaParserMember = hasNextJavaParser ? javaParserIter.next() : null;
-        while (hasNextJavac || hasNextJavaParser) {
+        BodyDeclaration<?> javaParserMember =
+                javaParserIter.hasNext() ? javaParserIter.next() : null;
+        while (javacIter.hasNext() || javaParserIter.hasNext()) {
             // Skip javac's synthetic no-argument constructors.
-            if (hasNextJavac
+            if (javacIter.hasNext()
                     && isNoArgumentConstructor(javacMember)
-                    && (!hasNextJavaParser || !isNoArgumentConstructor(javaParserMember))) {
-                hasNextJavac = javacIter.hasNext();
-                javacMember = hasNextJavac ? javacIter.next() : null;
+                    && (!javaParserIter.hasNext() || !isNoArgumentConstructor(javaParserMember))) {
+                javacIter.hasNext() = javacIter.hasNext();
+                javacMember = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
             }
 
             // In javac, a line like int i = 0, j = 0 is expanded as two sibling VariableTree
             // instances. In JavaParser this is one FieldDeclaration with two nested
             // VariableDeclarators. Match the declarators with the VariableTrees.
-            if (hasNextJavaParser && javaParserMember.isFieldDeclaration()) {
+            if (javaParserIter.hasNext() && javaParserMember.isFieldDeclaration()) {
                 for (VariableDeclarator decl :
                         javaParserMember.asFieldDeclaration().getVariables()) {
-                    assert hasNextJavac;
+                    assert javacIter.hasNext();
                     assert javacMember.getKind() == Kind.VARIABLE;
                     javacMember.accept(this, decl);
-                    hasNextJavac = javacIter.hasNext();
-                    javacMember = hasNextJavac ? javacIter.next() : null;
+                    javacIter.hasNext() = javacIter.hasNext();
+                    javacMember = javacIter.hasNext() ? javacIter.next() : null;
                 }
 
-                hasNextJavaParser = javaParserIter.hasNext();
-                javaParserMember = hasNextJavaParser ? javaParserIter.next() : null;
+                javaParserIter.hasNext() = javaParserIter.hasNext();
+                javaParserMember = javaParserIter.hasNext() ? javaParserIter.next() : null;
                 continue;
             }
 
-            assert hasNextJavac;
-            assert hasNextJavaParser;
+            assert javacIter.hasNext();
+            assert javaParserIter.hasNext();
             javacMember.accept(this, javaParserMember);
 
-            hasNextJavac = javacIter.hasNext();
-            javacMember = hasNextJavac ? javacIter.next() : null;
+            javacIter.hasNext() = javacIter.hasNext();
+            javacMember = javacIter.hasNext() ? javacIter.next() : null;
 
-            hasNextJavaParser = javaParserIter.hasNext();
-            javaParserMember = hasNextJavaParser ? javaParserIter.next() : null;
+            javaParserIter.hasNext() = javaParserIter.hasNext();
+            javaParserMember = javaParserIter.hasNext() ? javaParserIter.next() : null;
         }
 
-        assert !hasNextJavac;
-        assert !hasNextJavaParser;
+        assert !javacIter.hasNext();
+        assert !javaParserIter.hasNext();
     }
 
     /**
