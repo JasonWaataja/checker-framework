@@ -318,7 +318,7 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             // Skip synthetic javac super() calls by checking if the JavaParser statement matches.
             if (javacStatement != null
                     && isDefaultSuperConstructorCall(javacStatement)
-                    && (!javaParserStatement != null
+                    && (javaParserStatement == null
                             || !isDefaultSuperConstructorCall(javaParserStatement))) {
                 javacStatement = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
@@ -529,12 +529,11 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
         Iterator<BodyDeclaration<?>> javaParserIter = javaParserMembers.iterator();
         BodyDeclaration<?> javaParserMember =
                 javaParserIter.hasNext() ? javaParserIter.next() : null;
-        while (javacStatement != null || javaParserStatement != null) {
+        while (javacMember != null || javaParserMember != null) {
             // Skip javac's synthetic no-argument constructors.
-            if (javacStatement != null
+            if (javacMember != null
                     && isNoArgumentConstructor(javacMember)
-                    && (!javaParserStatement != null
-                            || !isNoArgumentConstructor(javaParserMember))) {
+                    && (javaParserMember == null || !isNoArgumentConstructor(javaParserMember))) {
                 javacMember = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
             }
@@ -542,10 +541,10 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
             // In javac, a line like int i = 0, j = 0 is expanded as two sibling VariableTree
             // instances. In JavaParser this is one FieldDeclaration with two nested
             // VariableDeclarators. Match the declarators with the VariableTrees.
-            if (javaParserStatement != null && javaParserMember.isFieldDeclaration()) {
+            if (javaParserMember != null && javaParserMember.isFieldDeclaration()) {
                 for (VariableDeclarator decl :
                         javaParserMember.asFieldDeclaration().getVariables()) {
-                    assert javacStatement != null;
+                    assert javacMember != null;
                     assert javacMember.getKind() == Kind.VARIABLE;
                     javacMember.accept(this, decl);
                     javacMember = javacIter.hasNext() ? javacIter.next() : null;
@@ -555,8 +554,8 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
                 continue;
             }
 
-            assert javacStatement != null;
-            assert javaParserStatement != null;
+            assert javacMember != null;
+            assert javaParserMember != null;
             javacMember.accept(this, javaParserMember);
 
             javacMember = javacIter.hasNext() ? javacIter.next() : null;
