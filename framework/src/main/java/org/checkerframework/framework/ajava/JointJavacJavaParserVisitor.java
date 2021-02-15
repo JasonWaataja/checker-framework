@@ -320,7 +320,6 @@ public abstract class JointJavacJavaParserVisitor implements TreeVisitor<Void, N
                     && isDefaultSuperConstructorCall(javacStatement)
                     && (!javaParserIter.hasNext()
                             || !isDefaultSuperConstructorCall(javaParserStatement))) {
-                javacIter.hasNext() = javacIter.hasNext();
                 javacStatement = javacIter.hasNext() ? javacIter.next() : null;
                 continue;
             }
