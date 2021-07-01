@@ -1021,15 +1021,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
         if (applicableKinds.size() == 2) {
-          wpi.addMethodDeclarationAnnotation(methodElt, PURE);
+          if (!methodElt.getAnnotationMirrors().contains(PURE)) {
+            wpi.addMethodDeclarationAnnotation(methodElt, PURE);
+          }
         } else if (applicableKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-          wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
+          if (!methodElt.getAnnotationMirrors().contains(SIDE_EFFECT_FREE)) {
+            wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
+          }
         } else if (applicableKinds.contains(Pure.Kind.DETERMINISTIC)) {
-          wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
+          if (!methodElt.getAnnotationMirrors().contains(DETERMINISTIC)) {
+            wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
+          }
         } else if (!applicableKinds.isEmpty()) {
           throw new BugInCF("Unexpected purity kind in " + applicableKinds);
         }
       }
+
       // Issue a warning if the method is pure, but not annotated as such.
       EnumSet<Pure.Kind> additionalKinds = applicableKinds.clone();
       additionalKinds.removeAll(kinds);
