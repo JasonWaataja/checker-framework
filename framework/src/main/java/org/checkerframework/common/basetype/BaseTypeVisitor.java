@@ -1013,37 +1013,33 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     if (suggestPureMethods && !TreeUtils.isSynthetic(node)) {
-      // Issue a warning if the method is pure, but not annotated as such.
-      EnumSet<Pure.Kind> additionalKinds = r.getKinds().clone();
-      additionalKinds.removeAll(kinds);
+      EnumSet<Pure.Kind> applicableKinds = r.getKinds().clone();
       if (TreeUtils.isConstructor(node)) {
-        additionalKinds.remove(Pure.Kind.DETERMINISTIC);
+        applicableKinds.remove(Pure.Kind.DETERMINISTIC);
       }
-      if (!additionalKinds.isEmpty()) {
-        if (infer) {
-          if (inferPurity) {
-            WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-            ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
-            if (additionalKinds.size() == 2) {
-              wpi.addMethodDeclarationAnnotation(methodElt, PURE);
-            } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-              wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
-            } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-              wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
-            } else {
-              throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-            }
-          }
+      WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+      ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
+      if (applicableKinds.size() == 2) {
+        wpi.addMethodDeclarationAnnotation(methodElt, PURE);
+      } else if (applicableKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+        wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
+      } else if (applicableKinds.contains(Pure.Kind.DETERMINISTIC)) {
+        wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
+      } else if (!applicableKinds.isEmpty()) {
+        throw new BugInCF("Unexpected purity kind in " + applicableKinds);
+      }
+      // Issue a warning if the method is pure, but not annotated as such.
+      EnumSet<Pure.Kind> additionalKinds = applicableKinds.clone();
+      additionalKinds.removeAll(kinds);
+      if (!additionalKinds.isEmpty() && !infer) {
+        if (additionalKinds.size() == 2) {
+          checker.reportWarning(node, "purity.more.pure", node.getName());
+        } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
+          checker.reportWarning(node, "purity.more.sideeffectfree", node.getName());
+        } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
+          checker.reportWarning(node, "purity.more.deterministic", node.getName());
         } else {
-          if (additionalKinds.size() == 2) {
-            checker.reportWarning(node, "purity.more.pure", node.getName());
-          } else if (additionalKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-            checker.reportWarning(node, "purity.more.sideeffectfree", node.getName());
-          } else if (additionalKinds.contains(Pure.Kind.DETERMINISTIC)) {
-            checker.reportWarning(node, "purity.more.deterministic", node.getName());
-          } else {
-            throw new BugInCF("Unexpected purity kind in " + additionalKinds);
-          }
+          throw new BugInCF("Unexpected purity kind in " + additionalKinds);
         }
       }
     }
