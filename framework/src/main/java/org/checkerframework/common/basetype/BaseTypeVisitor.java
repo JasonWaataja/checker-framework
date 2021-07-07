@@ -1021,17 +1021,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(node);
         if (applicableKinds.size() == 2) {
-          if (!atypeFactory.getAnnotatedType(node).hasExplicitAnnotation(PURE)) {
-            wpi.addMethodDeclarationAnnotation(methodElt, PURE);
-          }
+          wpi.addMethodDeclarationAnnotation(methodElt, PURE);
         } else if (applicableKinds.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-          if (!atypeFactory.getAnnotatedType(node).hasExplicitAnnotation(SIDE_EFFECT_FREE)) {
-            wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
-          }
+          wpi.addMethodDeclarationAnnotation(methodElt, SIDE_EFFECT_FREE);
         } else if (applicableKinds.contains(Pure.Kind.DETERMINISTIC)) {
-          if (!atypeFactory.getAnnotatedType(node).hasExplicitAnnotation(DETERMINISTIC)) {
-            wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
-          }
+          wpi.addMethodDeclarationAnnotation(methodElt, DETERMINISTIC);
         } else if (!applicableKinds.isEmpty()) {
           throw new BugInCF("Unexpected purity kind in " + applicableKinds);
         }
